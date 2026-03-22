@@ -1,0 +1,85 @@
+{% extends 'base.html' %} {% block title %}Rooms — {{ building.name }}{%
+endblock %} {% block page_title %}{{ building.name }} — Rooms{% endblock %} {%
+block topbar_actions %}
+<a href="{{ url_for('add_room', bid=building.id) }}" class="btn btn-primary"
+  >+ Add Room</a
+>
+{% endblock %} {% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('buildings') }}">Buildings</a>
+  <span class="breadcrumb-sep">›</span>
+  <span>{{ building.name }}</span>
+</div>
+
+{% if rooms %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Room No.</th>
+        <th>Floor</th>
+        <th>Capacity</th>
+        <th>Occupied</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for r in rooms %}
+      <tr>
+        <td
+          style="
+            font-family: &quot;Syne&quot;, sans-serif;
+            font-weight: 700;
+            font-size: 15px;
+          "
+        >
+          {{ r.room_number }}
+        </td>
+        <td>Floor {{ r.floor }}</td>
+        <td>{{ r.capacity }}</td>
+        <td>{{ r.occupancy }}</td>
+        <td>
+          {% if r.occupancy >= r.capacity %}
+          <span class="badge badge-red">Full</span>
+          {% elif r.occupancy == 0 %}
+          <span class="badge badge-gray">Empty</span>
+          {% else %}
+          <span class="badge badge-green"
+            >{{ r.occupancy }}/{{ r.capacity }}</span
+          >
+          {% endif %}
+        </td>
+        <td>
+          <div class="actions-cell">
+            <a
+              href="{{ url_for('edit_room', id=r.id) }}"
+              class="btn btn-secondary btn-sm"
+              >Edit</a
+            >
+            <form
+              method="POST"
+              action="{{ url_for('delete_room', id=r.id) }}"
+              class="confirm-delete"
+            >
+              <button type="submit" class="btn btn-danger btn-sm">
+                Delete
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">🚪</div>
+  <div class="empty-title">No Rooms Yet</div>
+  <p class="empty-desc">Add rooms to {{ building.name }}</p>
+  <a href="{{ url_for('add_room', bid=building.id) }}" class="btn btn-primary"
+    >+ Add Room</a
+  >
+</div>
+{% endif %} {% endblock %}

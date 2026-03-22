@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}Hostel & Youth Assembly{% endblock %}</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+  </head>
+  <body>
+    {% if not volunteer_mode %}
+    <!-- Overlay for mobile sidebar -->
+    <div
+      class="sidebar-overlay"
+      id="sidebar-overlay"
+      onclick="closeSidebar()"
+    ></div>
+
+    <nav class="sidebar" id="sidebar">
+      <div class="logo">
+        <div class="logo-icon">⬡</div>
+        <div>
+          <div class="logo-title">HOSTEL</div>
+          <div class="logo-sub">Management System</div>
+        </div>
+      </div>
+      <ul class="nav-links">
+        <li>
+          <a
+            href="{{ url_for('dashboard') }}"
+            class="{% if request.endpoint == 'dashboard' %}active{% endif %}"
+            onclick="closeSidebar()"
+          >
+            <span class="nav-icon">◈</span> Dashboard
+          </a>
+        </li>
+        <li class="nav-section">HOSTEL</li>
+        <li>
+          <a
+            href="{{ url_for('buildings') }}"
+            class="{% if 'building' in request.endpoint or 'room' in request.endpoint %}active{% endif %}"
+            onclick="closeSidebar()"
+          >
+            <span class="nav-icon">▦</span> Buildings & Rooms
+          </a>
+        </li>
+        <li>
+          <a
+            href="{{ url_for('students') }}"
+            class="{% if 'student' in request.endpoint %}active{% endif %}"
+            onclick="closeSidebar()"
+          >
+            <span class="nav-icon">◉</span> Students
+          </a>
+        </li>
+        <li>
+          <a
+            href="{{ url_for('import_data') }}"
+            class="{% if request.endpoint == 'import_data' %}active{% endif %}"
+            onclick="closeSidebar()"
+          >
+            <span class="nav-icon">⬆</span> Import Data
+          </a>
+        </li>
+        <li class="nav-section">ASSEMBLY</li>
+        <li>
+          <a
+            href="{{ url_for('assembly') }}"
+            class="{% if 'assembly' in request.endpoint or 'event' in request.endpoint or 'attendance' in request.endpoint %}active{% endif %}"
+            onclick="closeSidebar()"
+          >
+            <span class="nav-icon">◆</span> Youth Assembly
+          </a>
+        </li>
+      </ul>
+      <div class="sidebar-footer">
+        <div
+          style="
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+          "
+        >
+          <div class="sidebar-footer-text">Youth Assembly System</div>
+          <a
+            href="{{ url_for('admin_logout') }}"
+            style="
+              font-size: 11px;
+              color: var(--text3);
+              text-decoration: none;
+              padding: 4px 8px;
+              border-radius: 6px;
+              border: 1px solid var(--border);
+            "
+            title="Logout"
+            >↩ Logout</a
+          >
+        </div>
+      </div>
+    </nav>
+    {% endif %}
+
+    <main class="main-content {% if volunteer_mode %}vol-main{% endif %}">
+      <header class="topbar">
+        {% if not volunteer_mode %}
+        <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">
+          ☰
+        </button>
+        {% endif %} {% if volunteer_mode %}
+        <div style="display: flex; align-items: center; gap: 10px">
+          <div
+            style="
+              width: 32px;
+              height: 32px;
+              background: var(--accent);
+              border-radius: 8px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: 14px;
+              flex-shrink: 0;
+            "
+          >
+            🎯
+          </div>
+          <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+          <span
+            style="
+              background: var(--green-light);
+              color: var(--green);
+              border: 1px solid #bbf7d0;
+              font-size: 10.5px;
+              font-weight: 700;
+              padding: 3px 9px;
+              border-radius: 20px;
+              letter-spacing: 0.05em;
+              text-transform: uppercase;
+              white-space: nowrap;
+            "
+            >Volunteer</span
+          >
+        </div>
+        {% else %}
+        <div class="topbar-title">
+          {% block page_title_admin %}{% endblock %}
+        </div>
+        {% endif %}
+
+        <div class="topbar-actions">
+          {% block topbar_actions %}{% endblock %}
+        </div>
+      </header>
+
+      <div class="content-area">{% block content %}{% endblock %}</div>
+    </main>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    {% block extra_js %}{% endblock %} {% if not volunteer_mode %}
+    <script>
+      function toggleSidebar() {
+        document.getElementById("sidebar").classList.toggle("open");
+        document.getElementById("sidebar-overlay").classList.toggle("visible");
+        document.body.style.overflow = document
+          .getElementById("sidebar")
+          .classList.contains("open")
+          ? "hidden"
+          : "";
+      }
+      function closeSidebar() {
+        document.getElementById("sidebar").classList.remove("open");
+        document.getElementById("sidebar-overlay").classList.remove("visible");
+        document.body.style.overflow = "";
+      }
+      // Close on resize to desktop
+      window.addEventListener("resize", () => {
+        if (window.innerWidth > 768) closeSidebar();
+      });
+    </script>
+    {% endif %}
+  </body>
+</html>

@@ -1,0 +1,574 @@
+{% extends 'base.html' %} {% block title %}Attendance — {{ event.title }}{%
+endblock %} {% block page_title %}Take Attendance{% endblock %} {% block
+page_title_admin %}Take Attendance{% endblock %} {% block topbar_actions %} {%
+if volunteer_mode %}
+<a
+  href="{{ url_for('volunteer_report', eid=event.id) }}"
+  class="btn btn-secondary"
+  >View Report</a
+>
+<a href="{{ url_for('volunteer_dashboard') }}" class="btn btn-secondary"
+  >← Back</a
+>
+{% else %}
+<a
+  href="{{ url_for('attendance_report', eid=event.id) }}"
+  class="btn btn-secondary"
+  >View Report</a
+>
+<a href="{{ url_for('assembly') }}" class="btn btn-secondary">← Back</a>
+{% endif %} {% endblock %} {% block content %}
+<div class="breadcrumb">
+  {% if volunteer_mode %}
+  <a href="{{ url_for('volunteer_dashboard') }}">Events</a>
+  {% else %}
+  <a href="{{ url_for('assembly') }}">Youth Assembly</a>
+  {% endif %}
+  <span class="breadcrumb-sep">›</span>
+  <span>{{ event.title }}</span>
+  <span class="breadcrumb-sep">›</span>
+  <span>Attendance</span>
+</div>
+
+<!-- Event Info Bar -->
+<div
+  style="
+    background: var(--bg2);
+    border: 1.5px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 20px;
+    margin-bottom: 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: var(--shadow-sm);
+  "
+>
+  <div style="display: flex; align-items: center; gap: 14px">
+    <div
+      style="
+        width: 40px;
+        height: 40px;
+        background: var(--accent-light);
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+      "
+    >
+      🎯
+    </div>
+    <div>
+      <div
+        style="
+          font-family: &quot;Playfair Display&quot;, serif;
+          font-weight: 700;
+          font-size: 16px;
+        "
+      >
+        {{ event.title }}
+      </div>
+      <div
+        style="
+          font-size: 12px;
+          color: var(--accent);
+          font-weight: 600;
+          margin-top: 2px;
+        "
+      >
+        📅 {{ event.event_date }}
+      </div>
+    </div>
+  </div>
+  <div>
+    {% if window_open %}
+    <span class="window-badge window-open">✓ Attendance Open</span>
+    {% else %}
+    <span class="window-badge window-closed">✗ Window Closed</span>
+    {% endif %}
+  </div>
+</div>
+
+{% if not window_open %}
+<div class="locked-banner">
+  <div class="locked-icon">🔒</div>
+  <div>
+    <div class="locked-title">Attendance Window Closed</div>
+    <div class="locked-desc">
+      Attendance can only be taken on the event date ({{ event.event_date }})
+      and up to 2 days after. The window for this event has passed.
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="attendance-layout">
+  <!-- LEFT: Step selector -->
+  <div>
+    <!-- SEARCH TABS -->
+    <div
+      style="
+        background: var(--bg2);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        padding: 16px;
+        box-shadow: var(--shadow-sm);
+        margin-bottom: 12px;
+      "
+    >
+      <div
+        style="
+          font-size: 11px;
+          font-weight: 700;
+          text-transform: uppercase;
+          letter-spacing: 0.07em;
+          color: var(--text3);
+          margin-bottom: 10px;
+        "
+      >
+        Search Mode
+      </div>
+      <div class="tab-divider">
+        <button
+          class="tab-btn active"
+          onclick="switchTab('browse')"
+          id="tab-browse"
+        >
+          🏢 Browse by Room
+        </button>
+        <button class="tab-btn" onclick="switchTab('search')" id="tab-search">
+          🔍 Search by Name
+        </button>
+      </div>
+
+      <!-- Browse Mode -->
+      <div id="browse-mode">
+        <!-- Step 1 Building -->
+        <div class="step-panel">
+          <div class="step-header" onclick="toggleStep(1)">
+            <div class="step-num active" id="step1-num">1</div>
+            <div>
+              <div class="step-label active" id="step1-label">
+                Choose Building
+              </div>
+              <div class="step-sub" id="step1-sub">Select hostel building</div>
+            </div>
+          </div>
+          <div class="step-content open" id="step1-content">
+            <div class="search-input-wrap">
+              <span class="search-icon">🔍</span>
+              <input
+                type="text"
+                placeholder="Search building..."
+                oninput="filterList(this, 'building-list')"
+              />
+            </div>
+            <div class="select-list" id="building-list">
+              {% for b in buildings %}
+              <button
+                onclick="selectBuilding({{ b.id }}, '{{ b.name }}')"
+                id="b-{{ b.id }}"
+                data-name="{{ b.name|lower }}"
+              >
+                <span>🏢 {{ b.name }}</span>
+                <span style="font-size: 11px; color: var(--text3)">›</span>
+              </button>
+              {% endfor %} {% if not buildings %}
+              <div class="no-results">No buildings found</div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 Room -->
+        <div class="step-panel">
+          <div class="step-header" onclick="toggleStep(2)">
+            <div class="step-num" id="step2-num">2</div>
+            <div>
+              <div class="step-label" id="step2-label">Choose Room</div>
+              <div class="step-sub" id="step2-sub">Select building first</div>
+            </div>
+          </div>
+          <div class="step-content" id="step2-content">
+            <div class="search-input-wrap">
+              <span class="search-icon">🔍</span>
+              <input
+                type="text"
+                placeholder="Search room number..."
+                oninput="filterList(this, 'room-list')"
+              />
+            </div>
+            <div class="select-list" id="room-list">
+              <div class="no-results">Loading rooms...</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 Student -->
+        <div class="step-panel">
+          <div class="step-header" onclick="toggleStep(3)">
+            <div class="step-num" id="step3-num">3</div>
+            <div>
+              <div class="step-label" id="step3-label">Mark Student</div>
+              <div class="step-sub" id="step3-sub">Select room first</div>
+            </div>
+          </div>
+          <div class="step-content" id="step3-content">
+            <div class="search-input-wrap">
+              <span class="search-icon">🔍</span>
+              <input
+                type="text"
+                placeholder="Search student name..."
+                oninput="filterList(this, 'student-list')"
+              />
+            </div>
+            <div class="select-list" id="student-list">
+              <div class="no-results">Loading students...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Name Search Mode -->
+      <div id="search-mode" style="display: none">
+        <div class="global-search-bar">
+          <span class="search-icon">🔍</span>
+          <input
+            type="text"
+            id="global-name-search"
+            placeholder="Type student name to search..."
+            oninput="globalStudentSearch(this.value)"
+            autocomplete="off"
+          />
+        </div>
+        <div class="global-search-results" id="global-results">
+          <div class="no-results" style="padding: 20px">
+            Start typing to search students...
+          </div>
+        </div>
+        <div
+          style="
+            font-size: 11px;
+            color: var(--text3);
+            margin-top: 8px;
+            line-height: 1.5;
+          "
+        >
+          Search across all buildings and rooms. Click a student to mark them
+          present.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Live counter + present list -->
+  <div class="summary-panel">
+    <div class="counter-block">
+      <div class="counter-num" id="present-count">
+        {{ marked_ids | length }}
+      </div>
+      <div class="counter-label">Students Present</div>
+    </div>
+    <div class="marked-list-wrap">
+      <div class="marked-list-title">Present Students</div>
+      <div class="marked-list" id="marked-list">
+        {% if not marked_ids %}
+        <div class="no-results" id="empty-msg">No one marked present yet</div>
+        {% else %}
+        <div class="no-results" id="empty-msg" style="display: none"></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const EVENT_ID = {{ event.id }};
+  const WINDOW_OPEN = {{ 'true' if window_open else 'false' }};
+  const MARKED_IDS = {{ marked_ids | tojson }};
+  const ALL_STUDENTS = {{ all_students | tojson }};
+
+  // Pre-populate present list from server data
+  window.addEventListener('DOMContentLoaded', () => {
+      const markedSet = new Set(MARKED_IDS);
+      ALL_STUDENTS.filter(s => markedSet.has(s.id)).forEach(s => {
+          addToMarkedList(s.id, s.name, s.room_number || '', false);
+      });
+  });
+
+  // ── TAB SWITCHING ──
+  function switchTab(mode) {
+      document.getElementById('browse-mode').style.display = mode === 'browse' ? '' : 'none';
+      document.getElementById('search-mode').style.display = mode === 'search' ? '' : 'none';
+      document.getElementById('tab-browse').classList.toggle('active', mode === 'browse');
+      document.getElementById('tab-search').classList.toggle('active', mode === 'search');
+      if (mode === 'search') document.getElementById('global-name-search').focus();
+  }
+
+  // ── FILTER LIST ──
+  function filterList(input, listId) {
+      const q = input.value.toLowerCase();
+      const list = document.getElementById(listId);
+      let visible = 0;
+      list.querySelectorAll('button[data-name]').forEach(btn => {
+          const show = btn.dataset.name.includes(q);
+          btn.style.display = show ? '' : 'none';
+          if (show) visible++;
+      });
+      // Show/hide no-results
+      let nr = list.querySelector('.no-results');
+      if (!nr) { nr = document.createElement('div'); nr.className = 'no-results'; list.appendChild(nr); }
+      nr.textContent = visible === 0 && q ? 'No results found' : '';
+      nr.style.display = visible === 0 && q ? '' : 'none';
+  }
+
+  // ── STEP LOGIC ──
+  let currentStep = 1;
+
+  function toggleStep(n) {
+      if (n > currentStep) return;
+      openStep(n);
+  }
+
+  function openStep(n) {
+      for (let i=1;i<=3;i++) {
+          document.getElementById(`step${i}-content`).classList.toggle('open', i===n);
+      }
+      currentStep = n;
+  }
+
+  function setDone(n, sub) {
+      const num = document.getElementById(`step${n}-num`);
+      num.classList.remove('active'); num.classList.add('done'); num.textContent = '✓';
+      document.getElementById(`step${n}-label`).classList.add('active');
+      document.getElementById(`step${n}-sub`).textContent = sub;
+  }
+
+  function setActive(n) {
+      const num = document.getElementById(`step${n}-num`);
+      num.classList.add('active'); num.classList.remove('done'); num.textContent = n;
+      document.getElementById(`step${n}-label`).classList.add('active');
+  }
+
+  async function selectBuilding(id, name) {
+      document.querySelectorAll('[id^="b-"]').forEach(b => b.classList.remove('selected'));
+      document.getElementById(`b-${id}`).classList.add('selected');
+      setDone(1, name); setActive(2);
+      document.getElementById('step2-sub').textContent = 'Loading rooms...';
+      openStep(2);
+
+      const res = await fetch(`/api/buildings/${id}/rooms`);
+      const rooms = await res.json();
+      const list = document.getElementById('room-list');
+
+      if (rooms.length === 0) {
+          list.innerHTML = '<div class="no-results">No rooms in this building</div>';
+      } else {
+          list.innerHTML = rooms.map(r =>
+              `<button onclick="selectRoom(${r.id},'Room ${r.room_number}')" id="r-${r.id}" data-name="room ${r.room_number} floor ${r.floor}">
+                  <span>🚪 Room <strong>${r.room_number}</strong> <span style="font-size:11px;color:var(--text3);">Floor ${r.floor}</span></span>
+                  <span style="font-size:11px;color:var(--text3);">›</span>
+              </button>`
+          ).join('');
+      }
+      document.getElementById('step2-sub').textContent = `${rooms.length} rooms`;
+  }
+
+  async function selectRoom(id, label) {
+      document.querySelectorAll('[id^="r-"]').forEach(b => b.classList.remove('selected'));
+      document.getElementById(`r-${id}`).classList.add('selected');
+      setDone(2, label); setActive(3);
+      document.getElementById('step3-sub').textContent = 'Loading...';
+      openStep(3);
+
+      const res = await fetch(`/api/rooms/${id}/students`);
+      const students = await res.json();
+      const list = document.getElementById('student-list');
+
+      if (students.length === 0) {
+          list.innerHTML = '<div class="no-results">No students in this room</div>';
+      } else {
+          list.innerHTML = students.map(s => {
+              const present = MARKED_IDS.includes(s.id);
+              return `<button onclick="toggleAttendance(${s.id},'${s.name.replace(/'/g,"\\'")}',this)"
+                  id="s-${s.id}" class="student-btn ${present ? 'present' : ''}" data-name="${s.name.toLowerCase()}">
+                  <span>${s.name} ${s.roll_number ? `<span style="font-size:11px;color:var(--text3);">${s.roll_number}</span>` : ''}</span>
+                  <span style="font-size:12px;">${present ? '✓ Present' : 'Mark'}</span>
+              </button>`;
+          }).join('');
+      }
+      document.getElementById('step3-sub').textContent = `${students.length} students`;
+  }
+
+  // ── GLOBAL NAME SEARCH ──
+  function globalStudentSearch(q) {
+      const results = document.getElementById('global-results');
+      if (!q.trim()) {
+          results.innerHTML = '<div class="no-results" style="padding:20px;">Start typing to search students...</div>';
+          results.classList.add('visible');
+          return;
+      }
+      const lower = q.toLowerCase();
+      const matches = ALL_STUDENTS.filter(s =>
+          s.name.toLowerCase().includes(lower) ||
+          (s.roll_number && s.roll_number.toLowerCase().includes(lower))
+      );
+
+      if (matches.length === 0) {
+          results.innerHTML = '<div class="no-results" style="padding:20px;">No students found</div>';
+      } else {
+          results.innerHTML = matches.map(s => {
+              const present = MARKED_IDS.includes(s.id);
+              return `<div class="search-result-item ${present ? 'already-present' : ''}"
+                  onclick="toggleAttendanceById(${s.id},'${s.name.replace(/'/g,"\\'")}','${s.room_number||''}',this)">
+                  <div>
+                      <div class="result-name">${s.name}</div>
+                      <div class="result-info">${s.building_name || 'No building'} — ${s.room_number ? 'Room '+s.room_number : 'No room'}</div>
+                  </div>
+                  <span class="result-badge">${present ? '✓ Present' : ''}</span>
+              </div>`;
+          }).join('');
+      }
+      results.classList.add('visible');
+  }
+
+  async function toggleAttendanceById(id, name, room, el) {
+      const present = MARKED_IDS.includes(id);
+      if (!present) {
+          const ok = await markPresent(id, name);
+          if (ok) {
+              el.classList.add('already-present');
+              el.querySelector('.result-badge').textContent = '✓ Present';
+              // update step3 btn if visible
+              const s3btn = document.getElementById(`s-${id}`);
+              if (s3btn) { s3btn.classList.add('present'); s3btn.querySelector('span:last-child').textContent = '✓ Present'; }
+          }
+      } else {
+          const ok = await unmarkPresent(id);
+          if (ok) {
+              el.classList.remove('already-present');
+              el.querySelector('.result-badge').textContent = '';
+              const s3btn = document.getElementById(`s-${id}`);
+              if (s3btn) { s3btn.classList.remove('present'); s3btn.querySelector('span:last-child').textContent = 'Mark'; }
+          }
+      }
+  }
+
+  async function toggleAttendance(studentId, name, btn) {
+      const isPresent = btn.classList.contains('present');
+      if (!isPresent) {
+          const ok = await markPresent(studentId, name);
+          if (ok) {
+              btn.classList.add('present');
+              btn.querySelector('span:last-child').textContent = '✓ Present';
+              // update search results if open
+              refreshSearchResult(studentId, true);
+          }
+      } else {
+          const ok = await unmarkPresent(studentId);
+          if (ok) {
+              btn.classList.remove('present');
+              btn.querySelector('span:last-child').textContent = 'Mark';
+              refreshSearchResult(studentId, false);
+          }
+      }
+  }
+
+  function refreshSearchResult(id, present) {
+      const el = document.querySelector(`#global-results .search-result-item[onclick*="${id},"]`);
+      if (el) {
+          el.classList.toggle('already-present', present);
+          el.querySelector('.result-badge').textContent = present ? '✓ Present' : '';
+      }
+  }
+
+  async function markPresent(id, name) {
+      if (!WINDOW_OPEN) { showToast('Attendance window is closed for this event', 'error'); return false; }
+      const res = await fetch('/api/attendance/mark', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({event_id: EVENT_ID, student_id: id})
+      });
+      const data = await res.json();
+      if (data.success) {
+          MARKED_IDS.push(id);
+          document.getElementById('present-count').textContent = data.count;
+          addToMarkedList(id, name, '', true);
+          showToast(`${name} marked present`, 'success');
+          return true;
+      } else {
+          showToast(data.error || 'Failed to mark attendance', 'error');
+          return false;
+      }
+  }
+
+  async function unmarkPresent(id) {
+      const res = await fetch('/api/attendance/unmark', {
+          method: 'POST', headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({event_id: EVENT_ID, student_id: id})
+      });
+      const data = await res.json();
+      if (data.success) {
+          const idx = MARKED_IDS.indexOf(id);
+          if (idx > -1) MARKED_IDS.splice(idx, 1);
+          document.getElementById('present-count').textContent = data.count;
+          removeFromMarkedList(id);
+          showToast('Removed from present', 'info');
+          return true;
+      }
+      return false;
+  }
+
+  function addToMarkedList(id, name, room, animate) {
+      document.getElementById('empty-msg').style.display = 'none';
+      if (document.getElementById(`marked-${id}`)) return;
+      const list = document.getElementById('marked-list');
+      const item = document.createElement('div');
+      item.className = 'marked-item';
+      item.id = `marked-${id}`;
+      if (!animate) item.style.animation = 'none';
+      item.innerHTML = `
+          <div class="marked-dot"></div>
+          <div class="marked-name">${name}</div>
+          ${room ? `<div class="marked-room">Rm ${room}</div>` : ''}
+          <button class="remove-btn" onclick="unmarkById(${id},'${name.replace(/'/g,"\\'")}')">×</button>`;
+      list.appendChild(item);
+  }
+
+  function removeFromMarkedList(id) {
+      const el = document.getElementById(`marked-${id}`);
+      if (el) { el.style.opacity='0'; el.style.transition='opacity 0.2s'; setTimeout(()=>el.remove(), 200); }
+      if (MARKED_IDS.length === 0) { document.getElementById('empty-msg').style.display=''; }
+  }
+
+  async function unmarkById(id, name) {
+      const ok = await unmarkPresent(id);
+      if (ok) {
+          const s3 = document.getElementById(`s-${id}`);
+          if (s3) { s3.classList.remove('present'); s3.querySelector('span:last-child').textContent = 'Mark'; }
+          refreshSearchResult(id, false);
+      }
+  }
+
+  function showToast(msg, type='success') {
+      const icons = {success:'✓', error:'✗', info:'○'};
+      const t = document.createElement('div');
+      t.className = `toast ${type}`;
+      t.innerHTML = `<span class="t-icon">${icons[type]||'●'}</span> ${msg}`;
+      document.body.appendChild(t);
+      setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity 0.3s'; }, 2200);
+      setTimeout(()=>t.remove(), 2500);
+  }
+
+  // Close global search on outside click
+  document.addEventListener('click', e => {
+      if (!e.target.closest('#global-name-search') && !e.target.closest('#global-results')) {
+          document.getElementById('global-results').classList.remove('visible');
+      }
+  });
+  document.getElementById('global-name-search')?.addEventListener('focus', () => {
+      if (document.getElementById('global-name-search').value)
+          document.getElementById('global-results').classList.add('visible');
+  });
+</script>
+{% endblock %}

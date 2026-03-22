@@ -1,0 +1,107 @@
+{% extends 'base.html' %} {% block title %}Report — {{ event.title }}{% endblock
+%} {% block page_title %}Attendance Report{% endblock %} {% block
+page_title_admin %}Attendance Report{% endblock %} {% block topbar_actions %} {%
+if volunteer_mode %}
+<a
+  href="{{ url_for('volunteer_attendance', id=event.id) }}"
+  class="btn btn-primary"
+  >← Take Attendance</a
+>
+<a href="{{ url_for('volunteer_dashboard') }}" class="btn btn-secondary"
+  >← Dashboard</a
+>
+{% else %}
+<a href="{{ url_for('take_attendance', id=event.id) }}" class="btn btn-primary"
+  >← Take Attendance</a
+>
+<a href="{{ url_for('assembly') }}" class="btn btn-secondary">Assembly Home</a>
+{% endif %} {% endblock %} {% block content %}
+<div class="breadcrumb">
+  {% if volunteer_mode %}
+  <a href="{{ url_for('volunteer_dashboard') }}">Events</a>
+  {% else %}
+  <a href="{{ url_for('assembly') }}">Youth Assembly</a>
+  {% endif %}
+  <span class="breadcrumb-sep">›</span>
+  <span>{{ event.title }}</span>
+  <span class="breadcrumb-sep">›</span>
+  <span>Report</span>
+</div>
+
+<div class="stats-grid" style="margin-bottom: 24px">
+  <div class="stat-card green">
+    <div class="stat-num">{{ present | length }}</div>
+    <div class="stat-label">Present</div>
+  </div>
+  <div class="stat-card red" style="--accent: var(--red)">
+    <div class="stat-num" style="color: var(--red)">
+      {{ total - (present | length) }}
+    </div>
+    <div class="stat-label">Absent</div>
+  </div>
+  <div class="stat-card blue">
+    <div class="stat-num">{{ total }}</div>
+    <div class="stat-label">Total Students</div>
+  </div>
+  <div class="stat-card orange">
+    <div class="stat-num">
+      {{ "%.0f"|format((present|length / total * 100) if total else 0) }}%
+    </div>
+    <div class="stat-label">Attendance Rate</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header">
+    <div>
+      <div class="card-title">{{ event.title }}</div>
+      <div style="font-size: 12px; color: var(--accent); margin-top: 4px">
+        📅 {{ event.event_date }}
+      </div>
+    </div>
+    <button onclick="window.print()" class="btn btn-secondary btn-sm">
+      🖨 Print
+    </button>
+  </div>
+
+  {% if present %}
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Student Name</th>
+          <th>Building</th>
+          <th>Room</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in present %}
+        <tr>
+          <td style="color: var(--text3)">{{ loop.index }}</td>
+          <td style="font-weight: 600">{{ s.name }}</td>
+          <td>{{ s.building_name or '—' }}</td>
+          <td>{{ s.room_number or '—' }}</td>
+          <td><span class="badge badge-green">✓ Present</span></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <div class="empty-icon">◎</div>
+    <div class="empty-title">No Attendance Recorded</div>
+    <p class="empty-desc">
+      No students have been marked present for this event yet
+    </p>
+    <a
+      href="{{ url_for('take_attendance', id=event.id) }}"
+      class="btn btn-primary"
+      >Take Attendance Now</a
+    >
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

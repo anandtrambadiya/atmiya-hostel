@@ -1,0 +1,52 @@
+{% extends 'base.html' %} {% block title %}{{ 'Edit' if event else 'Create' }}
+Event{% endblock %} {% block page_title %}{{ 'Edit' if event else 'Create' }}
+Assembly Event{% endblock %} {% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('assembly') }}">Youth Assembly</a>
+  <span class="breadcrumb-sep">›</span>
+  <span>{{ 'Edit Event' if event else 'New Event' }}</span>
+</div>
+<div class="form-card">
+  <form method="POST">
+    <div class="form-group">
+      <label>Event Title *</label>
+      <input
+        type="text"
+        name="title"
+        value="{{ event.title if event else '' }}"
+        placeholder="e.g. Weekly Youth Assembly — Week 12"
+        required
+      />
+    </div>
+    <div class="form-group">
+      <label>Event Date *</label>
+      <input
+        type="date"
+        name="event_date"
+        value="{{ event.event_date if event else '' }}"
+        min="{{ today }}"
+        required
+      />
+      <div class="field-hint">
+        📅 Date must be today or in the future. Attendance can be taken on the
+        event date and up to 2 days after.
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea
+        name="description"
+        placeholder="Event details, theme, speaker, etc."
+      >
+{{ event.description if event else '' }}</textarea
+      >
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        {{ 'Save Changes' if event else 'Create Event' }}
+      </button>
+      <a href="{{ url_for('assembly') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

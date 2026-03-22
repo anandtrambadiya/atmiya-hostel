@@ -1,0 +1,82 @@
+{% extends 'base.html' %} {% block title %}{{ 'Edit' if student else 'Add' }}
+Student{% endblock %} {% block page_title %}{{ 'Edit' if student else 'Add' }}
+Student{% endblock %} {% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('students') }}">Students</a>
+  <span class="breadcrumb-sep">›</span>
+  <span>{{ 'Edit Student' if student else 'New Student' }}</span>
+</div>
+<div class="form-card">
+  <form method="POST">
+    <div class="form-group">
+      <label>Full Name *</label>
+      <input
+        type="text"
+        name="name"
+        value="{{ student.name if student else '' }}"
+        placeholder="Student's full name"
+        required
+      />
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Roll Number</label>
+        <input
+          type="text"
+          name="roll_number"
+          value="{{ student.roll_number if student else '' }}"
+          placeholder="e.g. 2024001"
+        />
+      </div>
+      <div class="form-group">
+        <label>Phone</label>
+        <input
+          type="tel"
+          name="phone"
+          value="{{ student.phone if student else '' }}"
+          placeholder="Contact number"
+        />
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Assign Room</label>
+      <select name="room_id" id="room_select">
+        <option value="">— No Room Assigned —</option>
+        {% for r in rooms %}
+        <option
+          value="{{ r.id }}"
+          {%
+          if
+          student
+          and
+          student.room_id=""
+          ="r.id"
+          %}selected{%
+          endif
+          %}
+        >
+          {{ r.bname }} — Room {{ r.room_number }}
+        </option>
+        {% endfor %}
+      </select>
+      <div style="font-size: 11px; color: var(--text3); margin-top: 5px">
+        You can change room assignment anytime
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Joining Date</label>
+      <input
+        type="date"
+        name="joining_date"
+        value="{{ student.joining_date if student else '' }}"
+      />
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        {{ 'Save Changes' if student else 'Add Student' }}
+      </button>
+      <a href="{{ url_for('students') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

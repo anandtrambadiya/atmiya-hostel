@@ -1,0 +1,38 @@
+{% extends 'base.html' %} {% block title %}{{ 'Edit' if building else 'Add' }}
+Building{% endblock %} {% block page_title %}{{ 'Edit' if building else 'Add' }}
+Building{% endblock %} {% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('buildings') }}">Buildings</a>
+  <span class="breadcrumb-sep">›</span>
+  <span>{{ 'Edit' if building else 'New Building' }}</span>
+</div>
+<div class="form-card">
+  <form method="POST">
+    <div class="form-group">
+      <label>Building Name *</label>
+      <input
+        type="text"
+        name="name"
+        value="{{ building.name if building else '' }}"
+        placeholder="e.g. Block A, North Wing"
+        required
+      />
+    </div>
+    <div class="form-group">
+      <label>Description</label>
+      <textarea
+        name="description"
+        placeholder="Optional description about this building"
+      >
+{{ building.description if building else '' }}</textarea
+      >
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="btn btn-primary">
+        {{ 'Save Changes' if building else 'Add Building' }}
+      </button>
+      <a href="{{ url_for('buildings') }}" class="btn btn-secondary">Cancel</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

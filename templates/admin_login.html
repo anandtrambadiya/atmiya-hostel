@@ -1,0 +1,204 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Login — Hostel System</title>
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <style>
+      body {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        background: var(--bg);
+        padding: 20px;
+      }
+      .login-page {
+        width: 100%;
+        max-width: 420px;
+      }
+
+      .login-brand {
+        text-align: center;
+        margin-bottom: 28px;
+      }
+      .login-brand-icon {
+        width: 60px;
+        height: 60px;
+        background: var(--accent);
+        border-radius: 16px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 26px;
+        margin-bottom: 12px;
+        box-shadow: 0 4px 20px rgba(37, 99, 235, 0.3);
+      }
+      .login-brand-name {
+        font-family: "Playfair Display", serif;
+        font-size: 22px;
+        font-weight: 700;
+        color: var(--text);
+      }
+      .login-brand-sub {
+        font-size: 13px;
+        color: var(--text3);
+        margin-top: 3px;
+      }
+
+      .login-card {
+        background: var(--bg2);
+        border: 1.5px solid var(--border);
+        border-radius: var(--radius);
+        padding: 36px 32px;
+        box-shadow: var(--shadow-lg);
+      }
+      .login-card-title {
+        font-family: "Playfair Display", serif;
+        font-size: 19px;
+        font-weight: 700;
+        margin-bottom: 4px;
+      }
+      .login-card-sub {
+        font-size: 13px;
+        color: var(--text2);
+        margin-bottom: 26px;
+      }
+
+      .error-box {
+        background: var(--red-light);
+        border: 1.5px solid #fecaca;
+        border-radius: 9px;
+        padding: 11px 14px;
+        font-size: 13px;
+        color: var(--red);
+        margin-bottom: 18px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .input-wrap {
+        position: relative;
+      }
+      .input-wrap input {
+        padding-right: 42px;
+      }
+      .eye-btn {
+        position: absolute;
+        right: 12px;
+        top: 50%;
+        transform: translateY(-50%);
+        background: none;
+        border: none;
+        cursor: pointer;
+        color: var(--text3);
+        font-size: 15px;
+        padding: 4px;
+      }
+      .eye-btn:hover {
+        color: var(--text2);
+      }
+
+      .login-submit {
+        width: 100%;
+        padding: 12px;
+        font-size: 15px;
+        margin-top: 20px;
+        justify-content: center;
+        border-radius: 9px;
+      }
+
+      .vol-link {
+        text-align: center;
+        margin-top: 20px;
+        font-size: 12.5px;
+        color: var(--text3);
+      }
+      .vol-link a {
+        color: var(--accent);
+        text-decoration: none;
+        font-weight: 600;
+      }
+      .vol-link a:hover {
+        text-decoration: underline;
+      }
+
+      @media (max-width: 480px) {
+        .login-card {
+          padding: 28px 22px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="login-page">
+      <div class="login-brand">
+        <div class="login-brand-icon">🏠</div>
+        <div class="login-brand-name">Hostel Management</div>
+        <div class="login-brand-sub">Youth Assembly System</div>
+      </div>
+
+      <div class="login-card">
+        <div class="login-card-title">Admin Login</div>
+        <div class="login-card-sub">
+          Enter your credentials to access the dashboard
+        </div>
+
+        {% if error %}
+        <div class="error-box">🔒 {{ error }}</div>
+        {% endif %}
+
+        <form method="POST">
+          <div class="form-group">
+            <label>Admin ID</label>
+            <input
+              type="text"
+              name="admin_id"
+              placeholder="Enter admin ID"
+              autocomplete="username"
+              autofocus
+              required
+              value="{{ request.form.get('admin_id', '') }}"
+            />
+          </div>
+          <div class="form-group">
+            <label>Password</label>
+            <div class="input-wrap">
+              <input
+                type="password"
+                name="password"
+                id="pw"
+                placeholder="Enter password"
+                autocomplete="current-password"
+                required
+              />
+              <button type="button" class="eye-btn" onclick="togglePw()">
+                👁
+              </button>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary login-submit">
+            Login to Dashboard →
+          </button>
+        </form>
+
+        <div class="vol-link">
+          Are you a volunteer?
+          <a href="{{ url_for('volunteer_login') }}">Open volunteer panel</a>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function togglePw() {
+        const i = document.getElementById("pw");
+        i.type = i.type === "password" ? "text" : "password";
+      }
+    </script>
+  </body>
+</html>

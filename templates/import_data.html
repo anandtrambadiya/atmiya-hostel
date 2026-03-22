@@ -1,0 +1,178 @@
+{% extends 'base.html' %} {% block title %}Import Data{% endblock %} {% block
+page_title %}Import Data{% endblock %} {% block content %}
+<div class="breadcrumb">
+  <a href="{{ url_for('dashboard') }}">Dashboard</a>
+  <span class="breadcrumb-sep">›</span>
+  <span>Import Data</span>
+</div>
+
+<div style="max-width: 640px">
+  <div class="card" style="margin-bottom: 20px">
+    <div class="card-header">
+      <div class="card-title">⬆ Import Student & Room Data</div>
+      <span class="badge badge-orange">Coming Soon</span>
+    </div>
+
+    <div
+      style="
+        background: var(--orange-light);
+        border: 1.5px solid #fed7aa;
+        border-radius: 10px;
+        padding: 14px 16px;
+        margin-bottom: 20px;
+        font-size: 13px;
+        color: #9a3412;
+        line-height: 1.6;
+      "
+    >
+      <strong>📋 Status:</strong> The auto-detect import is ready to receive
+      your file. Once you share the actual Excel/CSV format from your hostel, it
+      will be wired up to automatically map columns, create buildings, rooms,
+      and students in one click.
+    </div>
+
+    <form method="POST" enctype="multipart/form-data">
+      <div class="form-group">
+        <label>Upload File</label>
+        <input
+          type="file"
+          name="datafile"
+          accept=".xlsx,.xls,.csv,.ods"
+          style="
+            background: var(--bg);
+            border: 2px dashed var(--border);
+            padding: 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            text-align: center;
+          "
+        />
+        <div class="field-hint">
+          Accepted: Excel (.xlsx, .xls), CSV (.csv), OpenDocument (.ods)
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary">
+        Upload & Auto-Detect
+      </button>
+    </form>
+
+    {% if result %}
+    <div
+      style="
+        margin-top: 20px;
+        background: var(--green-light);
+        border: 1.5px solid #bbf7d0;
+        border-radius: 10px;
+        padding: 14px 16px;
+      "
+    >
+      <div style="font-weight: 700; color: var(--green); margin-bottom: 4px">
+        ✓ File Received: {{ result.filename }}
+      </div>
+      <div style="font-size: 13px; color: #166534">{{ result.message }}</div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- What will be imported -->
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">What gets imported?</div>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 14px">
+      <div style="display: flex; gap: 14px; align-items: flex-start">
+        <div
+          style="
+            width: 36px;
+            height: 36px;
+            background: var(--accent-light);
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+          "
+        >
+          🏢
+        </div>
+        <div>
+          <div style="font-weight: 600; font-size: 13.5px">Buildings</div>
+          <div style="font-size: 12px; color: var(--text2); margin-top: 2px">
+            Hostel block names will be auto-detected from the file
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 14px; align-items: flex-start">
+        <div
+          style="
+            width: 36px;
+            height: 36px;
+            background: var(--orange-light);
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+          "
+        >
+          🚪
+        </div>
+        <div>
+          <div style="font-weight: 600; font-size: 13.5px">Rooms</div>
+          <div style="font-size: 12px; color: var(--text2); margin-top: 2px">
+            Room numbers and floors mapped automatically
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 14px; align-items: flex-start">
+        <div
+          style="
+            width: 36px;
+            height: 36px;
+            background: var(--green-light);
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+          "
+        >
+          👤
+        </div>
+        <div>
+          <div style="font-weight: 600; font-size: 13.5px">Students</div>
+          <div style="font-size: 12px; color: var(--text2); margin-top: 2px">
+            Names, roll numbers, phone numbers assigned to rooms
+          </div>
+        </div>
+      </div>
+      <div style="display: flex; gap: 14px; align-items: flex-start">
+        <div
+          style="
+            width: 36px;
+            height: 36px;
+            background: var(--purple-light);
+            border-radius: 9px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            flex-shrink: 0;
+          "
+        >
+          🔄
+        </div>
+        <div>
+          <div style="font-weight: 600; font-size: 13.5px">Smart Merge</div>
+          <div style="font-size: 12px; color: var(--text2); margin-top: 2px">
+            Duplicate detection — won't re-create existing students or rooms
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

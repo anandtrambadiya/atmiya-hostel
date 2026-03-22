@@ -1,0 +1,70 @@
+{% extends 'base.html' %} {% block title %}Students{% endblock %} {% block
+page_title %}Students{% endblock %} {% block topbar_actions %}
+<a href="{{ url_for('add_student') }}" class="btn btn-primary">+ Add Student</a>
+{% endblock %} {% block content %} {% if students %}
+<div class="table-wrap">
+  <table>
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Roll No.</th>
+        <th>Phone</th>
+        <th>Building</th>
+        <th>Room</th>
+        <th>Joining</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for s in students %}
+      <tr>
+        <td style="font-weight: 600">{{ s.name }}</td>
+        <td>
+          <span class="badge badge-gray">{{ s.roll_number or '—' }}</span>
+        </td>
+        <td class="text-muted">{{ s.phone or '—' }}</td>
+        <td>
+          {{ s.building_name or '<span class="text-muted">Unassigned</span>' |
+          safe }}
+        </td>
+        <td>
+          {% if s.room_number %}
+          <span class="badge badge-blue">Room {{ s.room_number }}</span>
+          {% else %}
+          <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td class="text-muted text-sm">{{ s.joining_date or '—' }}</td>
+        <td>
+          <div class="actions-cell">
+            <a
+              href="{{ url_for('edit_student', id=s.id) }}"
+              class="btn btn-secondary btn-sm"
+              >Edit</a
+            >
+            <form
+              method="POST"
+              action="{{ url_for('delete_student', id=s.id) }}"
+              class="confirm-delete"
+            >
+              <button type="submit" class="btn btn-danger btn-sm">
+                Delete
+              </button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">◉</div>
+  <div class="empty-title">No Students Yet</div>
+  <p class="empty-desc">Add students to the hostel system</p>
+  <a href="{{ url_for('add_student') }}" class="btn btn-primary"
+    >+ Add Student</a
+  >
+</div>
+{% endif %} {% endblock %}

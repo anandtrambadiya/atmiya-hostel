@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if room else 'Add' }} Room{% endblock %}
+{% block page_title %}{{ 'Edit' if room else 'Add' }} Room{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    <a href="{{ url_for('buildings') }}">Buildings</a>
+    <span class="breadcrumb-sep">›</span>
+    <a href="{{ url_for('rooms', bid=building.id) }}">{{ building.name }}</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>{{ 'Edit Room' if room else 'New Room' }}</span>
+</div>
+<div class="form-card">
+    <form method="POST">
+        <div class="form-group">
+            <label>Room Number *</label>
+            <input type="text" name="room_number" value="{{ room.room_number if room else '' }}" placeholder="e.g. 101, A-205" required>
+        </div>
+        <div class="form-row">
+            <div class="form-group">
+                <label>Floor</label>
+                <input type="number" name="floor" value="{{ room.floor if room else 1 }}" min="0" max="50">
+            </div>
+            <div class="form-group">
+                <label>Capacity</label>
+                <input type="number" name="capacity" value="{{ room.capacity if room else 4 }}" min="1" max="20">
+            </div>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if room else 'Add Room' }}</button>
+            <a href="{{ url_for('rooms', bid=building.id) }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
+</div>
+{% endblock %}

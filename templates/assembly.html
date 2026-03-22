@@ -1,0 +1,102 @@
+{% extends 'base.html' %} {% block title %}Youth Assembly{% endblock %} {% block
+page_title %}Youth Assembly{% endblock %} {% block topbar_actions %}
+<a href="{{ url_for('add_event') }}" class="btn btn-primary">+ Create Event</a>
+{% endblock %} {% block content %}
+<div style="margin-bottom: 24px">
+  <p style="color: var(--text2); font-size: 13px">
+    Manage weekly youth assembly events and track student attendance. Attendance
+    window: event date + 2 days.
+  </p>
+</div>
+
+{% if events %}
+<div class="event-grid">
+  {% for e in events %} {% set today = today_str %}
+  <div class="event-card">
+    <div
+      style="
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 6px;
+      "
+    >
+      <div class="event-title">{{ e.title }}</div>
+      <div>
+        {% if e.window_open %}
+        <span class="window-badge window-open" style="white-space: nowrap"
+          >● Open</span
+        >
+        {% else %}
+        <span class="window-badge window-closed" style="white-space: nowrap"
+          >Closed</span
+        >
+        {% endif %}
+      </div>
+    </div>
+    <div class="event-date">📅 {{ e.event_date }}</div>
+    <div class="event-desc">
+      {{ e.description or 'No description provided.' }}
+    </div>
+    <div class="event-footer">
+      <div style="display: flex; align-items: baseline; gap: 5px">
+        <div class="event-count">{{ e.attendance_count }}</div>
+        <div class="event-count-label">present</div>
+      </div>
+      <div
+        style="
+          display: flex;
+          gap: 7px;
+          flex-wrap: wrap;
+          justify-content: flex-end;
+        "
+      >
+        {% if e.window_open %}
+        <a
+          href="{{ url_for('take_attendance', id=e.id) }}"
+          class="btn btn-primary btn-sm"
+          >Take Attendance</a
+        >
+        {% else %}
+        <a
+          href="{{ url_for('take_attendance', id=e.id) }}"
+          class="btn btn-secondary btn-sm"
+          >View Attendance</a
+        >
+        {% endif %}
+        <a
+          href="{{ url_for('attendance_report', eid=e.id) }}"
+          class="btn btn-secondary btn-sm"
+          >Report</a
+        >
+        <a
+          href="{{ url_for('edit_event', id=e.id) }}"
+          class="btn btn-secondary btn-sm"
+          >Edit</a
+        >
+        <form
+          method="POST"
+          action="{{ url_for('delete_event', id=e.id) }}"
+          class="confirm-delete"
+          style="display: inline"
+        >
+          <button type="submit" class="btn btn-danger btn-sm">Del</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="empty-state">
+  <div class="empty-icon">🎯</div>
+  <div class="empty-title">No Assembly Events Yet</div>
+  <p class="empty-desc">
+    Create your first youth assembly event to start tracking attendance
+  </p>
+  <a href="{{ url_for('add_event') }}" class="btn btn-primary"
+    >+ Create Event</a
+  >
+</div>
+{% endif %} {% endblock %}
