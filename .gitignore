@@ -1,0 +1,20 @@
+# Database — never commit real data
+*.db
+*.sqlite
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.env
+venv/
+env/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Uploads (if any)
+uploads/
+instance/

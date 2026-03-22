@@ -15,12 +15,18 @@ def is_attendance_open(event_date_str):
 def hash_password(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
 
-ADMIN_ID   = '1234'
-ADMIN_PASS = hash_password('5005')
+# ── Credentials from environment variables (set in Railway dashboard) ──
+# Never hardcode secrets in source code.
+ADMIN_ID   = os.environ.get('ADMIN_ID',   '1234')
+ADMIN_PASS = hash_password(os.environ.get('ADMIN_PASS', '5005'))
 
 app = Flask(__name__)
-app.secret_key = 'hostel_secret_key_2024'
-DB = 'hostel.db'
+app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key-change-in-prod')
+# Railway Volume mounts at /data — set DB_PATH=/data/hostel.db in Railway env vars
+DB_DIR = os.path.dirname(os.environ.get('DB_PATH', 'hostel.db'))
+if DB_DIR and not os.path.exists(DB_DIR):
+    os.makedirs(DB_DIR, exist_ok=True)
+DB = os.environ.get('DB_PATH', 'hostel.db')
 
 # ── ALLOWED ROUTES per role ───────────────────────────────
 VOLUNTEER_ALLOWED = {
@@ -389,13 +395,30 @@ def assembly():
         GROUP BY e.id ORDER BY e.event_date DESC
     ''').fetchall()
     conn.close()
-    events = []
+    today = date.today()
+    active, upcoming, past = [], [], []
     for e in events_raw:
         d = dict(e)
-        d['window_open'] = is_attendance_open(e['event_date'])
-        events.append(d)
-    today_str = date.today().strftime('%Y-%m-%d')
-    return render_template('assembly.html', events=events, today_str=today_str)
+        try:
+            edate = datetime.strptime(e["event_date"], "%Y-%m-%d").date()
+        except:
+            past.append(d)
+            continue
+        if edate <= today <= edate + timedelta(days=2):
+            d["status"] = "active"
+            active.append(d)
+        elif edate > today:
+            d["status"] = "upcoming"
+            upcoming.append(d)
+        else:
+            d["status"] = "past"
+            past.append(d)
+    # sort upcoming ascending, past descending
+    upcoming.sort(key=lambda x: x["event_date"])
+    today_str = today.strftime("%Y-%m-%d")
+    return render_template("assembly.html",
+                           active=active, upcoming=upcoming, past=past,
+                           today_str=today_str)
 
 @app.route('/assembly/add', methods=['GET','POST'])
 def add_event():
@@ -523,4 +546,4 @@ def import_data():
 
 if __name__ == '__main__':
     init_db()
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True)

@@ -1,102 +1,312 @@
 {% extends 'base.html' %} {% block title %}Youth Assembly{% endblock %} {% block
-page_title %}Youth Assembly{% endblock %} {% block topbar_actions %}
+page_title_admin %}Youth Assembly{% endblock %} {% block topbar_actions %}
 <a href="{{ url_for('add_event') }}" class="btn btn-primary">+ Create Event</a>
-{% endblock %} {% block content %}
-<div style="margin-bottom: 24px">
-  <p style="color: var(--text2); font-size: 13px">
-    Manage weekly youth assembly events and track student attendance. Attendance
-    window: event date + 2 days.
-  </p>
-</div>
-
-{% if events %}
-<div class="event-grid">
-  {% for e in events %} {% set today = today_str %}
-  <div class="event-card">
-    <div
-      style="
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 10px;
-        margin-bottom: 6px;
-      "
-    >
-      <div class="event-title">{{ e.title }}</div>
-      <div>
-        {% if e.window_open %}
-        <span class="window-badge window-open" style="white-space: nowrap"
-          >● Open</span
-        >
-        {% else %}
-        <span class="window-badge window-closed" style="white-space: nowrap"
-          >Closed</span
-        >
-        {% endif %}
-      </div>
-    </div>
-    <div class="event-date">📅 {{ e.event_date }}</div>
-    <div class="event-desc">
-      {{ e.description or 'No description provided.' }}
-    </div>
-    <div class="event-footer">
-      <div style="display: flex; align-items: baseline; gap: 5px">
-        <div class="event-count">{{ e.attendance_count }}</div>
-        <div class="event-count-label">present</div>
-      </div>
-      <div
-        style="
-          display: flex;
-          gap: 7px;
-          flex-wrap: wrap;
-          justify-content: flex-end;
-        "
-      >
-        {% if e.window_open %}
-        <a
-          href="{{ url_for('take_attendance', id=e.id) }}"
-          class="btn btn-primary btn-sm"
-          >Take Attendance</a
-        >
-        {% else %}
-        <a
-          href="{{ url_for('take_attendance', id=e.id) }}"
-          class="btn btn-secondary btn-sm"
-          >View Attendance</a
-        >
-        {% endif %}
-        <a
-          href="{{ url_for('attendance_report', eid=e.id) }}"
-          class="btn btn-secondary btn-sm"
-          >Report</a
-        >
-        <a
-          href="{{ url_for('edit_event', id=e.id) }}"
-          class="btn btn-secondary btn-sm"
-          >Edit</a
-        >
-        <form
-          method="POST"
-          action="{{ url_for('delete_event', id=e.id) }}"
-          class="confirm-delete"
-          style="display: inline"
-        >
-          <button type="submit" class="btn btn-danger btn-sm">Del</button>
-        </form>
-      </div>
-    </div>
-  </div>
-  {% endfor %}
-</div>
-{% else %}
+{% endblock %} {% block content %} {% set total_events = active|length +
+upcoming|length + past|length %} {% if total_events == 0 %}
 <div class="empty-state">
   <div class="empty-icon">🎯</div>
   <div class="empty-title">No Assembly Events Yet</div>
   <p class="empty-desc">
-    Create your first youth assembly event to start tracking attendance
+    Create your first youth assembly event to start tracking attendance.
   </p>
   <a href="{{ url_for('add_event') }}" class="btn btn-primary"
     >+ Create Event</a
   >
 </div>
-{% endif %} {% endblock %}
+
+{% else %}
+
+<style>
+  .section-block {
+    margin-bottom: 32px;
+  }
+  .section-hd {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .section-hd-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .dot-active {
+    background: var(--green);
+    box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.2);
+    animation: pulse-dot 2s infinite;
+  }
+  .dot-upcoming {
+    background: var(--accent);
+  }
+  .dot-past {
+    background: var(--border2);
+  }
+  @keyframes pulse-dot {
+    0%,
+    100% {
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+    }
+    50% {
+      box-shadow: 0 0 0 6px rgba(22, 163, 74, 0.06);
+    }
+  }
+  .section-hd-title {
+    font-family: "Playfair Display", serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .section-hd-count {
+    font-size: 12px;
+    font-weight: 600;
+    padding: 3px 10px;
+    border-radius: 20px;
+    margin-left: auto;
+  }
+  .count-active {
+    background: var(--green-light);
+    color: var(--green);
+    border: 1px solid #bbf7d0;
+  }
+  .count-upcoming {
+    background: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid #c7d7fe;
+  }
+  .count-past {
+    background: var(--bg3);
+    color: var(--text2);
+    border: 1px solid var(--border);
+  }
+
+  /* Card left border accent per status */
+  .event-card-active {
+    border-left: 4px solid var(--green);
+  }
+  .event-card-upcoming {
+    border-left: 4px solid var(--accent);
+  }
+  .event-card-past {
+    border-left: 4px solid var(--border2);
+    opacity: 0.82;
+  }
+
+  .event-card-past:hover {
+    opacity: 1;
+  }
+
+  .ev-top {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 6px;
+  }
+  .ev-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 20px;
+    white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .ev-badge-active {
+    background: var(--green-light);
+    color: var(--green);
+    border: 1px solid #bbf7d0;
+  }
+  .ev-badge-upcoming {
+    background: var(--accent-light);
+    color: var(--accent);
+    border: 1px solid #c7d7fe;
+  }
+  .ev-badge-past {
+    background: var(--bg3);
+    color: var(--text2);
+    border: 1px solid var(--border);
+  }
+
+  .ev-actions {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+
+  @media (max-width: 600px) {
+    .section-hd-title {
+      font-size: 14px;
+    }
+    .ev-actions {
+      width: 100%;
+    }
+    .ev-actions .btn {
+      flex: 1;
+      justify-content: center;
+      min-width: 0;
+    }
+  }
+</style>
+
+<!-- ── ACTIVE ── -->
+{% if active %}
+<div class="section-block">
+  <div class="section-hd">
+    <div class="section-hd-dot dot-active"></div>
+    <div class="section-hd-title">Active — Attendance Open</div>
+    <span class="section-hd-count count-active"
+      >{{ active|length }} event{{ 's' if active|length != 1 }}</span
+    >
+  </div>
+  <div class="event-grid">
+    {% for e in active %}
+    <div class="event-card event-card-active">
+      <div class="ev-top">
+        <div class="event-title">{{ e.title }}</div>
+        <span class="ev-badge ev-badge-active">● Live</span>
+      </div>
+      <div class="event-date">📅 {{ e.event_date }}</div>
+      <div class="event-desc">{{ e.description or 'No description.' }}</div>
+      <div class="event-footer">
+        <div style="display: flex; align-items: baseline; gap: 5px">
+          <div class="event-count">{{ e.attendance_count }}</div>
+          <div class="event-count-label">present</div>
+        </div>
+        <div class="ev-actions">
+          <a
+            href="{{ url_for('take_attendance', id=e.id) }}"
+            class="btn btn-primary btn-sm"
+            >✓ Take Attendance</a
+          >
+          <a
+            href="{{ url_for('attendance_report', eid=e.id) }}"
+            class="btn btn-secondary btn-sm"
+            >Report</a
+          >
+          <a
+            href="{{ url_for('edit_event', id=e.id) }}"
+            class="btn btn-secondary btn-sm"
+            >Edit</a
+          >
+          <form
+            method="POST"
+            action="{{ url_for('delete_event', id=e.id) }}"
+            class="confirm-delete"
+            style="display: inline"
+          >
+            <button type="submit" class="btn btn-danger btn-sm">Del</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── UPCOMING ── -->
+{% if upcoming %}
+<div class="section-block">
+  <div class="section-hd">
+    <div class="section-hd-dot dot-upcoming"></div>
+    <div class="section-hd-title">Upcoming</div>
+    <span class="section-hd-count count-upcoming"
+      >{{ upcoming|length }} event{{ 's' if upcoming|length != 1 }}</span
+    >
+  </div>
+  <div class="event-grid">
+    {% for e in upcoming %}
+    <div class="event-card event-card-upcoming">
+      <div class="ev-top">
+        <div class="event-title">{{ e.title }}</div>
+        <span class="ev-badge ev-badge-upcoming">⏳ Upcoming</span>
+      </div>
+      <div class="event-date">📅 {{ e.event_date }}</div>
+      <div class="event-desc">{{ e.description or 'No description.' }}</div>
+      <div class="event-footer">
+        <div style="font-size: 12px; color: var(--text3)">
+          Attendance opens on event day
+        </div>
+        <div class="ev-actions">
+          <a
+            href="{{ url_for('edit_event', id=e.id) }}"
+            class="btn btn-secondary btn-sm"
+            >Edit</a
+          >
+          <form
+            method="POST"
+            action="{{ url_for('delete_event', id=e.id) }}"
+            class="confirm-delete"
+            style="display: inline"
+          >
+            <button type="submit" class="btn btn-danger btn-sm">Del</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── PAST ── -->
+{% if past %}
+<div class="section-block">
+  <div class="section-hd">
+    <div class="section-hd-dot dot-past"></div>
+    <div class="section-hd-title">Past Events</div>
+    <span class="section-hd-count count-past"
+      >{{ past|length }} event{{ 's' if past|length != 1 }}</span
+    >
+  </div>
+  <div class="event-grid">
+    {% for e in past %}
+    <div class="event-card event-card-past">
+      <div class="ev-top">
+        <div class="event-title">{{ e.title }}</div>
+        <span class="ev-badge ev-badge-past">Ended</span>
+      </div>
+      <div class="event-date">📅 {{ e.event_date }}</div>
+      <div class="event-desc">{{ e.description or 'No description.' }}</div>
+      <div class="event-footer">
+        <div style="display: flex; align-items: baseline; gap: 5px">
+          <div class="event-count" style="font-size: 22px">
+            {{ e.attendance_count }}
+          </div>
+          <div class="event-count-label">attended</div>
+        </div>
+        <div class="ev-actions">
+          <a
+            href="{{ url_for('take_attendance', id=e.id) }}"
+            class="btn btn-secondary btn-sm"
+            >View Attendance</a
+          >
+          <a
+            href="{{ url_for('attendance_report', eid=e.id) }}"
+            class="btn btn-secondary btn-sm"
+            >Report</a
+          >
+          <a
+            href="{{ url_for('edit_event', id=e.id) }}"
+            class="btn btn-secondary btn-sm"
+            >Edit</a
+          >
+          <form
+            method="POST"
+            action="{{ url_for('delete_event', id=e.id) }}"
+            class="confirm-delete"
+            style="display: inline"
+          >
+            <button type="submit" class="btn btn-danger btn-sm">Del</button>
+          </form>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %} {% endif %} {% endblock %}

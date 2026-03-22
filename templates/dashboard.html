@@ -1,5 +1,5 @@
 {% extends 'base.html' %} {% block title %}Dashboard — Hostel Management{%
-endblock %} {% block page_title %}Dashboard{% endblock %} {% block
+endblock %} {% block page_title_admin %}Dashboard{% endblock %} {% block
 topbar_actions %}
 <a href="{{ url_for('import_data') }}" class="btn btn-secondary"
   >⬆ Import Data</a
@@ -29,6 +29,7 @@ topbar_actions %}
 </div>
 
 <div
+  class="dash-grid"
   style="
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -119,7 +120,10 @@ topbar_actions %}
 </div>
 
 <!-- Volunteer Section -->
-<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px">
+<div
+  class="dash-grid"
+  style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px"
+>
   <!-- QR Code Card -->
   <div class="card">
     <div class="card-header">
