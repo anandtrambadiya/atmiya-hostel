@@ -1,123 +1,213 @@
-# Deploy to Railway.app
+# Deploy to PythonAnywhere (Free)
 
 ## What you need
 
-- A [GitHub](https://github.com) account
-- A [Railway](https://railway.app) account (free, sign in with GitHub)
+- A [PythonAnywhere](https://www.pythonanywhere.com) account — free, no credit card
+
+Your app will be live at: `https://YOUR_USERNAME.pythonanywhere.com`
 
 ---
 
-## Step 1 — Push your code to GitHub
+## Step 1 — Sign up
 
-Open a terminal in the `hostel_app` folder and run:
+Go to [pythonanywhere.com](https://www.pythonanywhere.com) → **Pricing & signup** → **Create a Beginner account** (free).
+
+Pick a username carefully — it becomes your URL.
+
+---
+
+## Step 2 — Upload your project files
+
+### Option A — via ZIP (easiest)
+
+1. Zip your entire `hostel_app` folder on your computer
+2. In PythonAnywhere dashboard → **Files** tab
+3. Click **Upload a file** → upload the ZIP
+4. Open a **Bash console** (Dashboard → **New console → Bash**)
+5. Run:
 
 ```bash
-git init
-git add .
-git commit -m "Initial commit"
+cd ~
+unzip hostel_app.zip
+ls hostel_app/   # verify files are there
 ```
 
-Go to [github.com/new](https://github.com/new), create a **new repository** (name it anything, e.g. `hostel-app`), then run:
+### Option B — via GitHub
+
+If your code is on GitHub:
 
 ```bash
-git remote add origin https://github.com/YOUR_USERNAME/hostel-app.git
-git branch -M main
-git push -u origin main
+cd ~
+git clone https://github.com/YOUR_USERNAME/hostel-app.git hostel_app
 ```
 
 ---
 
-## Step 2 — Create Railway project
+## Step 3 — Install Flask
 
-1. Go to [railway.app](https://railway.app) → **New Project**
-2. Choose **Deploy from GitHub repo**
-3. Select your `hostel-app` repo
-4. Railway auto-detects Python and builds it — wait ~1 minute
-
----
-
-## Step 3 — Add a Volume (persistent database)
-
-Without this, your database resets every deploy.
-
-1. In your Railway project → click **+ New** → **Volume**
-2. Set **Mount Path** to `/data`
-3. Click **Add**
-
----
-
-## Step 4 — Set Environment Variables
-
-In your Railway project → click your service → **Variables** tab → add these one by one:
-
-| Variable     | Value                    | Notes                                      |
-| ------------ | ------------------------ | ------------------------------------------ |
-| `SECRET_KEY` | `any-long-random-string` | e.g. `xK9#mP2$qR7!nL4@wZ` — make it random |
-| `ADMIN_ID`   | `your_chosen_id`         | Don't use `1234`                           |
-| `ADMIN_PASS` | `your_strong_password`   | Don't use `5005`                           |
-| `DB_PATH`    | `/data/hostel.db`        | Must match the Volume mount path           |
-
-**How to pick a good SECRET_KEY:** Just mash your keyboard: `aK3!xP9#mQ2$rL7@nW5`
-
----
-
-## Step 5 — Deploy
-
-Railway redeploys automatically after you set env vars. Wait ~30 seconds.
-
-Click **View Logs** to confirm it started. You'll see:
-
-```
-[gunicorn] Booting worker with pid: ...
-```
-
-Click the generated URL (e.g. `hostel-app.up.railway.app`) — your app is live!
-
----
-
-## Step 6 — Change the volunteer password
-
-Once deployed, log in as admin → Dashboard → **Volunteer Password** → set a new strong password.
-
----
-
-## After first deploy — updating the app
-
-Whenever you make changes:
+In the Bash console:
 
 ```bash
-git add .
-git commit -m "describe your change"
-git push
+pip3 install --user flask
 ```
 
-Railway auto-redeploys on every push. Database is preserved on the Volume.
+---
+
+## Step 4 — Create your .env file
+
+In the Bash console:
+
+```bash
+cd ~/hostel_app
+cp .env.example .env
+nano .env
+```
+
+Edit the values — use arrow keys to move, type your values:
+
+```
+SECRET_KEY=xK9mP2qR7nL4wZ3vB8   ← any long random string
+ADMIN_ID=YourChosenID            ← NOT 1234
+ADMIN_PASS=YourStrongPassword    ← NOT 5005
+DB_PATH=/home/YOUR_USERNAME/hostel_app/hostel.db
+```
+
+Replace `YOUR_USERNAME` with your actual PythonAnywhere username.
+
+Press **Ctrl+X → Y → Enter** to save.
+
+---
+
+## Step 5 — Test it runs
+
+In the Bash console:
+
+```bash
+cd ~/hostel_app
+python3 wsgi.py
+```
+
+You should see no errors. Press Ctrl+C to stop.
+
+---
+
+## Step 6 — Set up the Web App
+
+1. Go to PythonAnywhere **Web** tab → **Add a new web app**
+2. Click **Next** → choose **Manual configuration** → choose **Python 3.10**
+3. Click **Next** → your web app is created
+
+### Set the source code path
+
+In the **Code** section:
+
+- **Source code:** `/home/YOUR_USERNAME/hostel_app`
+- **Working directory:** `/home/YOUR_USERNAME/hostel_app`
+
+### Set the WSGI file
+
+Click the link to edit your WSGI file (something like `/var/www/YOUR_USERNAME_pythonanywhere_com_wsgi.py`).
+
+**Delete everything** in that file and paste this:
+
+```python
+import sys
+import os
+
+project_home = '/home/YOUR_USERNAME/hostel_app'
+if project_home not in sys.path:
+    sys.path.insert(0, project_home)
+
+env_file = os.path.join(project_home, '.env')
+if os.path.exists(env_file):
+    with open(env_file) as f:
+        for line in f:
+            line = line.strip()
+            if line and not line.startswith('#') and '=' in line:
+                key, _, val = line.partition('=')
+                os.environ.setdefault(key.strip(), val.strip())
+
+from app import app, init_db
+init_db()
+application = app
+```
+
+Replace `YOUR_USERNAME` with your actual username. **Save the file.**
+
+---
+
+## Step 7 — Reload and open
+
+Back on the **Web** tab → click the big green **Reload** button.
+
+Visit `https://YOUR_USERNAME.pythonanywhere.com` — your app is live! 🎉
+
+---
+
+## Updating the app later
+
+When you make changes to the code:
+
+### If you used ZIP upload:
+
+1. Upload the new ZIP → unzip again
+2. Web tab → click **Reload**
+
+### If you used GitHub:
+
+```bash
+cd ~/hostel_app
+git pull
+```
+
+Then Web tab → click **Reload**
+
+Your database (`hostel.db`) is never touched by updates — it lives at `/home/YOUR_USERNAME/hostel_app/hostel.db` and persists forever.
+
+---
+
+## Keep the free app awake
+
+PythonAnywhere free accounts go to sleep after a while with no visits.
+To keep it awake, set a monthly task to ping it:
+
+1. PythonAnywhere → **Tasks** tab
+2. Add a **Scheduled task** → run daily:
+
+```bash
+curl -s https://YOUR_USERNAME.pythonanywhere.com/ > /dev/null
+```
 
 ---
 
 ## Security checklist
 
-- [x] Admin credentials in Railway env vars, not in code
-- [x] `.env` and `*.db` in `.gitignore` — won't be pushed to GitHub
-- [x] Passwords are SHA-256 hashed, never stored in plain text
-- [x] Flask secret key from environment
-- [x] HTTPS provided automatically by Railway
+- [x] Admin credentials in `.env` file, not in source code
+- [x] `.env` is in `.gitignore` — won't go to GitHub
+- [x] `.env` lives only on PythonAnywhere server
+- [x] Passwords are SHA-256 hashed
+- [x] HTTPS provided automatically by PythonAnywhere
+- [x] Database persists forever on free plan
 - [ ] Change default volunteer password after first login
-- [ ] Don't share your Railway dashboard with anyone
+- [ ] Don't share your PythonAnywhere password with anyone
 
 ---
 
-## Local development
+## Troubleshooting
+
+**"ModuleNotFoundError: No module named flask"**
 
 ```bash
-# Create your local .env
-cp .env.example .env
-# Edit .env and set your local values
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run locally
-python app.py
-# Open http://localhost:5000
+pip3 install --user flask
 ```
+
+Then reload the web app.
+
+**"500 Internal Server Error"**
+Go to Web tab → click the **error log** link → read the last few lines for the actual error.
+
+**App shows old content after update**
+Web tab → click **Reload** button.
+
+**Database is empty after update**
+That's normal if you changed `DB_PATH`. Check that `.env` has the correct path.
