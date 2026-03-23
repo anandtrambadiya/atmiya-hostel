@@ -1,6 +1,6 @@
 {% extends 'base.html' %} {% block title %}{{ 'Edit' if student else 'Add' }}
-Student{% endblock %} {% block page_title %}{{ 'Edit' if student else 'Add' }}
-Student{% endblock %} {% block content %}
+Student{% endblock %} {% block page_title_admin %}{{ 'Edit' if student else
+'Add' }} Student{% endblock %} {% block content %}
 <div class="breadcrumb">
   <a href="{{ url_for('students') }}">Students</a>
   <span class="breadcrumb-sep">›</span>
