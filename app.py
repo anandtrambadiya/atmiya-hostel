@@ -15,14 +15,14 @@ def is_attendance_open(event_date_str):
 def hash_password(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
 
-# ── Credentials from environment variables (set in Railway dashboard) ──
+# ── Credentials from environment variables (set in Render dashboard) ──
 # Never hardcode secrets in source code.
 ADMIN_ID   = os.environ.get('ADMIN_ID',   '1234')
 ADMIN_PASS = hash_password(os.environ.get('ADMIN_PASS', '5005'))
 
 app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key-change-in-prod')
-# Railway Volume mounts at /data — set DB_PATH=/data/hostel.db in Railway env vars
+# Render Disk mounts at /data — set DB_PATH=/data/hostel.db in Render dashboard
 DB_DIR = os.path.dirname(os.environ.get('DB_PATH', 'hostel.db'))
 if DB_DIR and not os.path.exists(DB_DIR):
     os.makedirs(DB_DIR, exist_ok=True)
@@ -544,6 +544,8 @@ def import_data():
                       'message': 'File received. Auto-detection will be implemented once you share the actual file format.'}
     return render_template('import_data.html', result=result)
 
+# Init DB on startup — works for both gunicorn and direct python run
+init_db()
+
 if __name__ == '__main__':
-    init_db()
-    app.run(debug=True)
+    app.run(debug=False)
