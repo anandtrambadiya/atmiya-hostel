@@ -1,52 +1,67 @@
-{% extends 'base.html' %} {% block title %}{{ 'Edit' if event else 'Create' }}
-Event{% endblock %} {% block page_title %}{{ 'Edit' if event else 'Create' }}
-Assembly Event{% endblock %} {% block content %}
+{% extends 'base.html' %}
+{% block title %}{{ 'Edit' if event else 'Create' }} Event{% endblock %}
+{% block page_title_admin %}{{ 'Edit' if event else 'Create' }} Event{% endblock %}
+
+{% block content %}
 <div class="breadcrumb">
-  <a href="{{ url_for('assembly') }}">Youth Assembly</a>
-  <span class="breadcrumb-sep">›</span>
-  <span>{{ 'Edit Event' if event else 'New Event' }}</span>
+    <a href="{{ url_for('events') }}">Events</a>
+    <span class="breadcrumb-sep">›</span>
+    <span>{{ 'Edit Event' if event else 'New Event' }}</span>
 </div>
+
 <div class="form-card">
-  <form method="POST">
-    <div class="form-group">
-      <label>Event Title *</label>
-      <input
-        type="text"
-        name="title"
-        value="{{ event.title if event else '' }}"
-        placeholder="e.g. Weekly Youth Assembly — Week 12"
-        required
-      />
-    </div>
-    <div class="form-group">
-      <label>Event Date *</label>
-      <input
-        type="date"
-        name="event_date"
-        value="{{ event.event_date if event else '' }}"
-        min="{{ today }}"
-        required
-      />
-      <div class="field-hint">
-        📅 Date must be today or in the future. Attendance can be taken on the
-        event date and up to 2 days after.
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Description</label>
-      <textarea
-        name="description"
-        placeholder="Event details, theme, speaker, etc."
-      >
-{{ event.description if event else '' }}</textarea
-      >
-    </div>
-    <div class="form-actions">
-      <button type="submit" class="btn btn-primary">
-        {{ 'Save Changes' if event else 'Create Event' }}
-      </button>
-      <a href="{{ url_for('assembly') }}" class="btn btn-secondary">Cancel</a>
-    </div>
-  </form>
+    <form method="POST">
+
+        <!-- Event type toggle -->
+        <div class="form-group">
+            <label>Event Type</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+                <label id="lbl-sabha" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:14px 16px;border:2px solid var(--border);border-radius:10px;transition:all 0.18s;{% if event_type=='sabha' %}border-color:var(--accent);background:var(--accent-light);{% endif %}">
+                    <input type="radio" name="event_type" value="sabha" {% if event_type=='sabha' %}checked{% endif %} style="display:none;" onchange="updateType()">
+                    <span style="font-size:22px;">🕌</span>
+                    <div>
+                        <div style="font-weight:700;font-size:14px;">Sabha</div>
+                        <div style="font-size:11px;color:var(--text2);">Sun & Wed sabha</div>
+                    </div>
+                </label>
+                <label id="lbl-hostel" style="cursor:pointer;display:flex;align-items:center;gap:10px;padding:14px 16px;border:2px solid var(--border);border-radius:10px;transition:all 0.18s;{% if event_type=='hostel' %}border-color:var(--accent);background:var(--accent-light);{% endif %}">
+                    <input type="radio" name="event_type" value="hostel" {% if event_type=='hostel' %}checked{% endif %} style="display:none;" onchange="updateType()">
+                    <span style="font-size:22px;">🏠</span>
+                    <div>
+                        <div style="font-weight:700;font-size:14px;">Hostel Assembly</div>
+                        <div style="font-size:11px;color:var(--text2);">Friday youth assembly</div>
+                    </div>
+                </label>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Event Title *</label>
+            <input type="text" name="title" value="{{ event.title if event else '' }}" placeholder="e.g. Sunday Sabha — Week 12" required>
+        </div>
+        <div class="form-group">
+            <label>Event Date *</label>
+            <input type="date" name="event_date" value="{{ event.event_date if event else '' }}" min="{{ today }}" required>
+            <div class="field-hint">Attendance can be taken on event date and up to 2 days after.</div>
+        </div>
+        <div class="form-group">
+            <label>Description</label>
+            <textarea name="description" placeholder="Speaker, topic, notes...">{{ event.description if event else '' }}</textarea>
+        </div>
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">{{ 'Save Changes' if event else 'Create Event' }}</button>
+            <a href="{{ url_for('events') }}" class="btn btn-secondary">Cancel</a>
+        </div>
+    </form>
 </div>
+
+<script>
+function updateType() {
+    const sabha = document.querySelector('input[value="sabha"]').checked;
+    document.getElementById('lbl-sabha').style.borderColor = sabha ? 'var(--accent)' : 'var(--border)';
+    document.getElementById('lbl-sabha').style.background = sabha ? 'var(--accent-light)' : '';
+    document.getElementById('lbl-hostel').style.borderColor = !sabha ? 'var(--accent)' : 'var(--border)';
+    document.getElementById('lbl-hostel').style.background = !sabha ? 'var(--accent-light)' : '';
+}
+</script>
 {% endblock %}

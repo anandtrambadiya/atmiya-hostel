@@ -1,0 +1,106 @@
+{% extends 'base.html' %}
+{% block title %}Events{% endblock %}
+{% block page_title_admin %}All Events{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('add_event', type='sabha') }}" class="btn btn-secondary btn-sm">+ Sabha</a>
+<a href="{{ url_for('add_event', type='hostel') }}" class="btn btn-primary btn-sm">+ Hostel</a>
+{% endblock %}
+
+{% block content %}
+
+{% set total = active|length + upcoming|length + past|length %}
+{% if total == 0 %}
+<div class="empty-state">
+    <div class="empty-icon">◆</div>
+    <div class="empty-title">No Events Yet</div>
+    <p class="empty-desc">Create your first Sabha or Hostel event</p>
+    <div style="display:flex;gap:10px;justify-content:center;">
+        <a href="{{ url_for('add_event', type='sabha') }}" class="btn btn-secondary">+ Sabha Event</a>
+        <a href="{{ url_for('add_event', type='hostel') }}" class="btn btn-primary">+ Hostel Event</a>
+    </div>
+</div>
+{% else %}
+
+<style>
+.section-block { margin-bottom:32px; }
+.section-hd { display:flex;align-items:center;gap:10px;margin-bottom:14px;padding-bottom:12px;border-bottom:2px solid var(--border); }
+.section-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
+.dot-active { background:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,0.2);animation:pdot 2s infinite; }
+.dot-upcoming { background:var(--accent); }
+.dot-past { background:var(--border2); }
+@keyframes pdot { 0%,100%{box-shadow:0 0 0 3px rgba(22,163,74,0.18);}50%{box-shadow:0 0 0 6px rgba(22,163,74,0.06);} }
+.section-title { font-family:'Playfair Display',serif;font-size:16px;font-weight:700; }
+.s-count { font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px;margin-left:auto; }
+.s-active { background:var(--green-light);color:var(--green);border:1px solid #bbf7d0; }
+.s-upcoming { background:var(--accent-light);color:var(--accent);border:1px solid #c7d7fe; }
+.s-past { background:var(--bg3);color:var(--text2);border:1px solid var(--border); }
+.ev-type-badge { font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;white-space:nowrap; }
+.ev-type-sabha { background:#fdf4ff;color:#7c3aed;border:1px solid #e9d5ff; }
+.ev-type-hostel { background:var(--orange-light);color:var(--orange);border:1px solid #fed7aa; }
+.ev-badge { font-size:11px;font-weight:700;padding:4px 10px;border-radius:20px;white-space:nowrap;flex-shrink:0; }
+.ev-active { background:var(--green-light);color:var(--green);border:1px solid #bbf7d0; }
+.ev-upcoming { background:var(--accent-light);color:var(--accent);border:1px solid #c7d7fe; }
+.ev-past { background:var(--bg3);color:var(--text2);border:1px solid var(--border); }
+.ev-card-active { border-left:4px solid var(--green); }
+.ev-card-upcoming { border-left:4px solid var(--accent); }
+.ev-card-past { border-left:4px solid var(--border2);opacity:0.82; }
+.ev-card-past:hover { opacity:1; }
+.ev-actions { display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end; }
+</style>
+
+{% for section_events, dot_class, title_text, count_class, badge_class, badge_text in [
+    (active, 'dot-active', 'Active — Attendance Open', 's-active', 'ev-active', '● Live'),
+    (upcoming, 'dot-upcoming', 'Upcoming', 's-upcoming', 'ev-upcoming', '⏳ Upcoming'),
+    (past, 'dot-past', 'Past Events', 's-past', 'ev-past', 'Ended')
+] %}
+{% if section_events %}
+<div class="section-block">
+    <div class="section-hd">
+        <div class="section-dot {{ dot_class }}"></div>
+        <div class="section-title">{{ title_text }}</div>
+        <span class="s-count {{ count_class }}">{{ section_events|length }}</span>
+    </div>
+    <div class="event-grid">
+        {% for e in section_events %}
+        <div class="event-card ev-card-{{ e.status }}">
+            <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:8px;margin-bottom:6px;">
+                <div>
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+                        <span class="ev-type-badge {{ 'ev-type-sabha' if e.event_type=='sabha' else 'ev-type-hostel' }}">
+                            {{ '🕌 Sabha' if e.event_type=='sabha' else '🏠 Hostel' }}
+                        </span>
+                    </div>
+                    <div class="event-title">{{ e.title }}</div>
+                </div>
+                <span class="ev-badge {{ badge_class }}">{{ badge_text }}</span>
+            </div>
+            <div class="event-date">📅 {{ e.event_date }}</div>
+            <div class="event-desc">{{ e.description or 'No description.' }}</div>
+            <div class="event-footer">
+                <div style="display:flex;align-items:baseline;gap:5px;">
+                    <div class="event-count" style="{% if e.status=='past' %}font-size:22px;{% endif %}">{{ e.attendance_count }}</div>
+                    <div class="event-count-label">{{ 'present' if e.status!='past' else 'attended' }}</div>
+                </div>
+                <div class="ev-actions">
+                    {% if e.status == 'active' %}
+                    <a href="{{ url_for('take_attendance', id=e.id) }}" class="btn btn-primary btn-sm">✓ Attendance</a>
+                    {% elif e.status == 'upcoming' %}
+                    <span class="btn btn-secondary btn-sm" style="opacity:0.5;cursor:default;">Not open yet</span>
+                    {% else %}
+                    <a href="{{ url_for('take_attendance', id=e.id) }}" class="btn btn-secondary btn-sm">View</a>
+                    {% endif %}
+                    <a href="{{ url_for('event_report', eid=e.id) }}" class="btn btn-secondary btn-sm">Report</a>
+                    <a href="{{ url_for('edit_event', id=e.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+                    <form method="POST" action="{{ url_for('delete_event', id=e.id) }}" class="confirm-delete" style="display:inline;">
+                        <button type="submit" class="btn btn-danger btn-sm">Del</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}
+{% endblock %}

@@ -1,239 +1,134 @@
-{% extends 'base.html' %} {% block title %}Dashboard — Hostel Management{%
-endblock %} {% block page_title_admin %}Dashboard{% endblock %} {% block
-topbar_actions %}
-<a href="{{ url_for('import_data') }}" class="btn btn-secondary"
-  >⬆ Import Data</a
->
-{% endblock %} {% block content %}
-<div class="stats-grid">
-  <div class="stat-card blue">
-    <div class="stat-icon">🏢</div>
-    <div class="stat-num">{{ stats.buildings }}</div>
-    <div class="stat-label">Buildings</div>
-  </div>
-  <div class="stat-card orange">
-    <div class="stat-icon">🚪</div>
-    <div class="stat-num">{{ stats.rooms }}</div>
-    <div class="stat-label">Rooms</div>
-  </div>
-  <div class="stat-card green">
-    <div class="stat-icon">👤</div>
-    <div class="stat-num">{{ stats.students }}</div>
-    <div class="stat-label">Students</div>
-  </div>
-  <div class="stat-card purple">
-    <div class="stat-icon">🎯</div>
-    <div class="stat-num">{{ stats.events }}</div>
-    <div class="stat-label">Events</div>
-  </div>
+{% extends 'base.html' %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title_admin %}Dashboard{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('add_event', type='sabha') }}" class="btn btn-secondary btn-sm">+ Sabha Event</a>
+<a href="{{ url_for('add_event', type='hostel') }}" class="btn btn-primary btn-sm">+ Hostel Event</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- Stats -->
+<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+    <div class="stat-card blue">
+        <div class="stat-icon">◆</div>
+        <div class="stat-num">{{ stats.sabha_events }}</div>
+        <div class="stat-label">Sabha Events</div>
+    </div>
+    <div class="stat-card purple">
+        <div class="stat-icon">🏠</div>
+        <div class="stat-num">{{ stats.hostel_events }}</div>
+        <div class="stat-label">Hostel Events</div>
+    </div>
+    <div class="stat-card green">
+        <div class="stat-icon">👥</div>
+        <div class="stat-num">{{ stats.satsangis }}</div>
+        <div class="stat-label">Satsangis</div>
+    </div>
 </div>
 
-<div
-  class="dash-grid"
-  style="
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 24px;
-    margin-bottom: 24px;
-  "
->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Quick Actions</div>
+<div class="stats-grid" style="grid-template-columns:repeat(3,1fr);">
+    <div class="stat-card orange">
+        <div class="stat-icon">🏢</div>
+        <div class="stat-num">{{ stats.buildings }}</div>
+        <div class="stat-label">Buildings</div>
     </div>
-    <div style="display: flex; flex-direction: column; gap: 10px">
-      <a
-        href="{{ url_for('add_building') }}"
-        class="btn btn-secondary"
-        style="justify-content: flex-start"
-        >🏢 Add New Building</a
-      >
-      <a
-        href="{{ url_for('add_student') }}"
-        class="btn btn-secondary"
-        style="justify-content: flex-start"
-        >👤 Add New Student</a
-      >
-      <a
-        href="{{ url_for('add_event') }}"
-        class="btn btn-primary"
-        style="justify-content: flex-start"
-        >🎯 Create Assembly Event</a
-      >
-      <a
-        href="{{ url_for('import_data') }}"
-        class="btn btn-secondary"
-        style="justify-content: flex-start"
-        >⬆ Import Data from File</a
-      >
+    <div class="stat-card blue">
+        <div class="stat-icon">🚪</div>
+        <div class="stat-num">{{ stats.rooms }}</div>
+        <div class="stat-label">Rooms</div>
     </div>
-  </div>
+    <div class="stat-card green">
+        <div class="stat-icon">◉</div>
+        <div class="stat-num">{{ stats.students }}</div>
+        <div class="stat-label">Students</div>
+    </div>
+</div>
 
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">Recent Assembly Events</div>
-      <a href="{{ url_for('assembly') }}" class="btn btn-secondary btn-sm"
-        >View All</a
-      >
-    </div>
-    {% if recent_events %}
-    <div style="display: flex; flex-direction: column; gap: 10px">
-      {% for e in recent_events %}
-      <div
-        style="
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          padding: 10px 12px;
-          background: var(--bg3);
-          border-radius: 9px;
-          border: 1.5px solid var(--border);
-        "
-      >
-        <div>
-          <div style="font-weight: 600; font-size: 13px">{{ e.title }}</div>
-          <div style="font-size: 11px; color: var(--accent); margin-top: 2px">
-            {{ e.event_date }}
-          </div>
+<!-- Create event launcher -->
+<div class="dash-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;">
+    <a href="{{ url_for('add_event', type='sabha') }}" class="card" style="text-decoration:none;display:block;border:2px solid var(--border);transition:all 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:32px;margin-bottom:12px;">🕌</div>
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;margin-bottom:6px;">Create Sabha Event</div>
+        <div style="font-size:13px;color:var(--text2);">Sunday & Wednesday sabha attendance for satsangis</div>
+    </a>
+    <a href="{{ url_for('add_event', type='hostel') }}" class="card" style="text-decoration:none;display:block;border:2px solid var(--border);transition:all 0.2s;cursor:pointer;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <div style="font-size:32px;margin-bottom:12px;">🏠</div>
+        <div style="font-family:'Playfair Display',serif;font-size:17px;font-weight:700;margin-bottom:6px;">Create Hostel Event</div>
+        <div style="font-size:13px;color:var(--text2);">Friday youth assembly for hostel students</div>
+    </a>
+</div>
+
+<!-- Recent events -->
+<div class="dash-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">Recent Events</div>
+            <a href="{{ url_for('events') }}" class="btn btn-secondary btn-sm">View All</a>
         </div>
-        <a
-          href="{{ url_for('take_attendance', id=e.id) }}"
-          class="btn btn-sm btn-primary"
-          >Attendance</a
-        >
-      </div>
-      {% endfor %}
+        {% if recent_events %}
+        <div style="display:flex;flex-direction:column;gap:8px;">
+            {% for e in recent_events %}
+            <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg3);border-radius:9px;border:1.5px solid var(--border);gap:10px;">
+                <div style="min-width:0;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
+                        <span>{{ '🕌' if e.event_type == 'sabha' else '🏠' }}</span>
+                        <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ e.title }}</div>
+                    </div>
+                    <div style="font-size:11px;color:var(--accent);">{{ e.event_date }}</div>
+                </div>
+                <a href="{{ url_for('take_attendance', id=e.id) }}" class="btn btn-sm btn-primary" style="flex-shrink:0;">Attend</a>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:30px 0;">
+            <div class="empty-icon">◆</div>
+            <div class="empty-title" style="font-size:15px;">No Events Yet</div>
+        </div>
+        {% endif %}
     </div>
-    {% else %}
-    <div class="empty-state" style="padding: 30px 20px">
-      <div class="empty-icon">🎯</div>
-      <div class="empty-title">No Events Yet</div>
-      <a
-        href="{{ url_for('add_event') }}"
-        class="btn btn-primary"
-        style="margin-top: 10px"
-        >Create Event</a
-      >
+
+    <div class="card">
+        <div class="card-header">
+            <div class="card-title">🔑 Volunteer Password</div>
+        </div>
+        <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.6;">
+            Change the password volunteers use to log in.
+            Default: <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:12px;">volunteer123</code>
+        </p>
+        <form method="POST" action="{{ url_for('update_volunteer_password') }}">
+            <div class="form-group">
+                <label>New Password</label>
+                <input type="password" name="new_password" placeholder="Minimum 4 characters" minlength="4" required>
+            </div>
+            <button type="submit" class="btn btn-primary">Update Password</button>
+        </form>
+
+        <div style="margin-top:20px;padding-top:16px;border-top:1.5px solid var(--border);">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text2);margin-bottom:10px;">Volunteer Login QR</div>
+            <div id="qr-container" style="display:inline-block;padding:12px;background:#fff;border:1.5px solid var(--border);border-radius:10px;margin-bottom:10px;"></div>
+            <div style="display:flex;gap:8px;">
+                <a href="{{ url_for('volunteer_login') }}" target="_blank" class="btn btn-secondary btn-sm">Open →</a>
+                <button onclick="printQR()" class="btn btn-secondary btn-sm">🖨 Print</button>
+            </div>
+        </div>
     </div>
-    {% endif %}
-  </div>
 </div>
 
-<!-- Volunteer Section -->
-<div
-  class="dash-grid"
-  style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px"
->
-  <!-- QR Code Card -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">🙋 Volunteer Login</div>
-      <span class="badge badge-blue">QR Code</span>
-    </div>
-    <div style="text-align: center">
-      <p style="font-size: 13px; color: var(--text2); margin-bottom: 16px">
-        Share this QR code with the volunteer to quickly open the login page on
-        their phone.
-      </p>
-      <div
-        id="qr-container"
-        style="
-          display: inline-block;
-          padding: 16px;
-          background: #fff;
-          border: 1.5px solid var(--border);
-          border-radius: 12px;
-          margin-bottom: 16px;
-        "
-      ></div>
-      <div style="font-size: 12px; color: var(--text3); margin-bottom: 14px">
-        Scan to open: <strong id="vol-url"></strong>
-      </div>
-      <div style="display: flex; gap: 8px; justify-content: center">
-        <a
-          href="{{ url_for('volunteer_login') }}"
-          target="_blank"
-          class="btn btn-primary btn-sm"
-          >Open Volunteer Page</a
-        >
-        <button onclick="printQR()" class="btn btn-secondary btn-sm">
-          🖨 Print QR
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Change Password Card -->
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">🔑 Volunteer Password</div>
-    </div>
-    <p
-      style="
-        font-size: 13px;
-        color: var(--text2);
-        margin-bottom: 18px;
-        line-height: 1.6;
-      "
-    >
-      Change the password that volunteers use to log in. Default password is
-      <code
-        style="
-          background: var(--bg3);
-          padding: 2px 6px;
-          border-radius: 4px;
-          font-size: 12px;
-        "
-        >volunteer123</code
-      >
-    </p>
-    <form method="POST" action="{{ url_for('update_volunteer_password') }}">
-      <div class="form-group">
-        <label>New Password</label>
-        <input
-          type="password"
-          name="new_password"
-          placeholder="At least 4 characters"
-          minlength="4"
-          required
-        />
-      </div>
-      <button type="submit" class="btn btn-primary">Update Password</button>
-    </form>
-  </div>
-</div>
-
-<!-- QR Code generator -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
-  const volUrl = window.location.origin + '{{ url_for("volunteer_login") }}';
-  document.getElementById("vol-url").textContent = volUrl;
-  new QRCode(document.getElementById("qr-container"), {
-    text: volUrl,
-    width: 180,
-    height: 180,
-    colorDark: "#1a1814",
-    colorLight: "#ffffff",
-    correctLevel: QRCode.CorrectLevel.M,
-  });
-
-  function printQR() {
-    const qrImg = document.querySelector("#qr-container img");
-    const w = window.open("", "", "width=400,height=500");
-    w.document.write(`
-        <html><head><title>Volunteer QR Code</title>
-        <style>body{font-family:sans-serif;text-align:center;padding:40px;}
-        img{width:220px;height:220px;} h2{margin-bottom:8px;}
-        p{color:#666;font-size:13px;margin-top:12px;}</style></head>
-        <body>
-        <h2>Youth Assembly</h2>
-        <p>Volunteer Login QR Code</p>
-        <img src="${qrImg.src}"><br>
-        <p style="margin-top:16px;font-size:12px;word-break:break-all;">${volUrl}</p>
-        <script>window.onload=()=>window.print()<\/script>
-        </body></html>
-    `);
+const volUrl = window.location.origin + '{{ url_for("volunteer_login") }}';
+new QRCode(document.getElementById('qr-container'), {
+    text: volUrl, width: 130, height: 130,
+    colorDark: '#1a1814', colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.M
+});
+function printQR() {
+    const qrImg = document.querySelector('#qr-container img');
+    const w = window.open('', '', 'width=400,height=500');
+    w.document.write('<html><head><title>Volunteer QR</title><style>body{font-family:sans-serif;text-align:center;padding:40px;}img{width:200px;height:200px;}</style></head><body><h2>Volunteer Login</h2><img src="' + qrImg.src + '"><br><p style="font-size:12px;word-break:break-all;">' + volUrl + '</p><script>window.onload=()=>window.print()<\/script></body></html>');
     w.document.close();
-  }
+}
 </script>
 {% endblock %}

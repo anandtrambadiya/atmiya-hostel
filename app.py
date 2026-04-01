@@ -15,6 +15,23 @@ def is_attendance_open(event_date_str):
 def hash_password(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
 
+def categorize_events(events_raw):
+    today = date.today()
+    active, upcoming, past = [], [], []
+    for e in events_raw:
+        try:
+            edate = datetime.strptime(str(e['event_date']), '%Y-%m-%d').date()
+        except:
+            past.append(e); continue
+        if edate <= today <= edate + timedelta(days=2):
+            e['status'] = 'active'; active.append(e)
+        elif edate > today:
+            e['status'] = 'upcoming'; upcoming.append(e)
+        else:
+            e['status'] = 'past'; past.append(e)
+    upcoming.sort(key=lambda x: str(x['event_date']))
+    return active, upcoming, past
+
 # ── Config ───────────────────────────────────────────────
 ADMIN_ID   = os.environ.get('ADMIN_ID',   '1234')
 ADMIN_PASS = hash_password(os.environ.get('ADMIN_PASS', '5005'))
@@ -23,17 +40,14 @@ app = Flask(__name__)
 app.secret_key = os.environ.get('SECRET_KEY', 'dev-only-insecure-key-change-in-prod')
 
 DATABASE_URL = os.environ.get('DATABASE_URL', '')
-# Render PostgreSQL URLs start with postgres:// — psycopg2 needs postgresql://
 if DATABASE_URL.startswith('postgres://'):
     DATABASE_URL = DATABASE_URL.replace('postgres://', 'postgresql://', 1)
 
-# ── DB connection ─────────────────────────────────────────
+# ── DB ────────────────────────────────────────────────────
 def get_db():
-    conn = psycopg2.connect(DATABASE_URL)
-    return conn
+    return psycopg2.connect(DATABASE_URL)
 
 def dict_row(cursor, row):
-    """Convert a psycopg2 row to a dict."""
     cols = [desc[0] for desc in cursor.description]
     return dict(zip(cols, row))
 
@@ -44,102 +58,89 @@ def fetchone_dict(cursor):
     row = cursor.fetchone()
     return dict_row(cursor, row) if row else None
 
-# ── init DB ───────────────────────────────────────────────
+# ── INIT DB ───────────────────────────────────────────────
 def init_db():
-    conn = get_db()
-    c = conn.cursor()
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS buildings (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            description TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS rooms (
-            id SERIAL PRIMARY KEY,
-            building_id INTEGER NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
-            room_number TEXT NOT NULL,
-            capacity INTEGER DEFAULT 4,
-            floor INTEGER DEFAULT 1
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS students (
-            id SERIAL PRIMARY KEY,
-            name TEXT NOT NULL,
-            roll_number TEXT,
-            phone TEXT,
-            room_id INTEGER REFERENCES rooms(id) ON DELETE SET NULL,
-            joining_date TEXT
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS events (
-            id SERIAL PRIMARY KEY,
-            title TEXT NOT NULL,
-            event_date TEXT NOT NULL,
-            description TEXT,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS attendance (
-            id SERIAL PRIMARY KEY,
-            event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
-            student_id INTEGER NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-            status TEXT NOT NULL DEFAULT 'present',
-            marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-            UNIQUE(event_id, student_id)
-        )
-    ''')
-    c.execute('''
-        CREATE TABLE IF NOT EXISTS settings (
-            key TEXT PRIMARY KEY,
-            value TEXT
-        )
-    ''')
+    conn = get_db(); c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS buildings (
+        id SERIAL PRIMARY KEY, name TEXT NOT NULL, description TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS rooms (
+        id SERIAL PRIMARY KEY,
+        building_id INTEGER NOT NULL REFERENCES buildings(id) ON DELETE CASCADE,
+        room_number TEXT NOT NULL, capacity INTEGER DEFAULT 4, floor INTEGER DEFAULT 1)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS students (
+        id SERIAL PRIMARY KEY, name TEXT NOT NULL, roll_number TEXT, phone TEXT,
+        room_id INTEGER REFERENCES rooms(id) ON DELETE SET NULL, joining_date TEXT)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS satsangis (
+        id SERIAL PRIMARY KEY, name TEXT NOT NULL, mobile TEXT, address TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    c.execute('''CREATE TABLE IF NOT EXISTS events (
+        id SERIAL PRIMARY KEY, title TEXT NOT NULL, event_date TEXT NOT NULL,
+        event_type TEXT NOT NULL DEFAULT 'hostel',
+        description TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP)''')
+    # Add event_type column if upgrading existing DB
+    c.execute("""SELECT column_name FROM information_schema.columns
+                 WHERE table_name='events' AND column_name='event_type'""")
+    if not c.fetchone():
+        c.execute("ALTER TABLE events ADD COLUMN event_type TEXT NOT NULL DEFAULT 'hostel'")
+    c.execute('''CREATE TABLE IF NOT EXISTS attendance (
+        id SERIAL PRIMARY KEY,
+        event_id INTEGER NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+        person_id INTEGER NOT NULL,
+        person_type TEXT NOT NULL DEFAULT 'student',
+        status TEXT NOT NULL DEFAULT 'present',
+        marked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(event_id, person_id, person_type))''')
+    # Migrate old attendance table if needed
+    c.execute("""SELECT column_name FROM information_schema.columns
+                 WHERE table_name='attendance' AND column_name='person_type'""")
+    if not c.fetchone():
+        c.execute("ALTER TABLE attendance ADD COLUMN person_type TEXT NOT NULL DEFAULT 'student'")
+        c.execute("ALTER TABLE attendance RENAME COLUMN student_id TO person_id")
+    c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
     c.execute("SELECT value FROM settings WHERE key='volunteer_password'")
     if not c.fetchone():
         c.execute("INSERT INTO settings (key,value) VALUES ('volunteer_password',%s)",
                   (hash_password('volunteer123'),))
-    conn.commit()
-    conn.close()
+    conn.commit(); conn.close()
 
 # ── AUTO MARK ABSENT ──────────────────────────────────────
-def auto_mark_absent(event_id):
-    conn = get_db()
+def auto_mark_absent(event_id, event_type):
+    conn = get_db(); c = conn.cursor()
     try:
-        c = conn.cursor()
-        c.execute("SELECT id FROM students")
-        all_students = [r[0] for r in c.fetchall()]
-        c.execute("SELECT student_id FROM attendance WHERE event_id=%s", (event_id,))
+        if event_type == 'sabha':
+            c.execute("SELECT id FROM satsangis")
+            person_type = 'satsangi'
+        else:
+            c.execute("SELECT id FROM students")
+            person_type = 'student'
+        all_ids = [r[0] for r in c.fetchall()]
+        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type=%s",
+                  (event_id, person_type))
         recorded = {r[0] for r in c.fetchall()}
-        absent = [(event_id, sid, 'absent') for sid in all_students if sid not in recorded]
+        absent = [(event_id, pid, person_type, 'absent') for pid in all_ids if pid not in recorded]
         if absent:
-            psycopg2.extras.execute_values(
-                c,
-                "INSERT INTO attendance (event_id, student_id, status) VALUES %s ON CONFLICT DO NOTHING",
-                absent
-            )
+            psycopg2.extras.execute_values(c,
+                "INSERT INTO attendance (event_id,person_id,person_type,status) VALUES %s ON CONFLICT DO NOTHING",
+                absent)
         conn.commit()
     finally:
         conn.close()
 
-def maybe_auto_mark_absent(event_id, event_date_str):
+def maybe_auto_mark_absent(event_id, event_date_str, event_type):
     try:
         edate = datetime.strptime(str(event_date_str), "%Y-%m-%d").date()
         if date.today() > edate + timedelta(days=2):
-            auto_mark_absent(event_id)
+            auto_mark_absent(event_id, event_type)
     except:
         pass
 
 # ── ALLOWED ROUTES ────────────────────────────────────────
 VOLUNTEER_ALLOWED = {
-    'volunteer_dashboard', 'volunteer_attendance', 'volunteer_report',
-    'volunteer_login', 'volunteer_logout',
+    'volunteer_dashboard', 'volunteer_attendance', 'volunteer_sabha_attendance',
+    'volunteer_report', 'volunteer_login', 'volunteer_logout',
     'api_rooms', 'api_students', 'api_mark_attendance', 'api_unmark_attendance',
+    'api_search_satsangis', 'api_mark_sabha', 'api_unmark_sabha',
     'static'
 }
 PUBLIC_ROUTES = {'admin_login', 'admin_logout', 'volunteer_login', 'volunteer_logout', 'static'}
@@ -147,9 +148,8 @@ PUBLIC_ROUTES = {'admin_login', 'admin_logout', 'volunteer_login', 'volunteer_lo
 @app.before_request
 def auth_guard():
     ep = request.endpoint
-    if not ep or ep in PUBLIC_ROUTES:
-        return
-    is_admin     = session.get('admin')
+    if not ep or ep in PUBLIC_ROUTES: return
+    is_admin = session.get('admin')
     is_volunteer = session.get('volunteer')
     if is_volunteer and not is_admin:
         if ep not in VOLUNTEER_ALLOWED:
@@ -169,8 +169,7 @@ def admin_login():
         uid = request.form.get('admin_id','').strip()
         pw  = request.form.get('password','')
         if uid == ADMIN_ID and hash_password(pw) == ADMIN_PASS:
-            session['admin'] = True
-            session.permanent = True
+            session['admin'] = True; session.permanent = True
             return redirect(request.args.get('next') or url_for('dashboard'))
         error = 'Invalid ID or password.'
     return render_template('admin_login.html', error=error)
@@ -185,13 +184,28 @@ def admin_logout():
 def dashboard():
     conn = get_db(); c = conn.cursor()
     stats = {}
-    for key, table in [('buildings','buildings'),('rooms','rooms'),('students','students'),('events','events')]:
+    for key, table in [('buildings','buildings'),('rooms','rooms'),('students','students'),
+                       ('satsangis','satsangis'),('events','events')]:
         c.execute(f'SELECT COUNT(*) FROM {table}')
         stats[key] = c.fetchone()[0]
-    c.execute('SELECT * FROM events ORDER BY created_at DESC LIMIT 5')
+    c.execute("SELECT COUNT(*) FROM events WHERE event_type='sabha'")
+    stats['sabha_events'] = c.fetchone()[0]
+    c.execute("SELECT COUNT(*) FROM events WHERE event_type='hostel'")
+    stats['hostel_events'] = c.fetchone()[0]
+    c.execute('SELECT * FROM events ORDER BY created_at DESC LIMIT 6')
     recent_events = fetchall_dict(c)
     conn.close()
     return render_template('dashboard.html', stats=stats, recent_events=recent_events)
+
+# ── SETTINGS ─────────────────────────────────────────────
+@app.route('/settings/volunteer-password', methods=['POST'])
+def update_volunteer_password():
+    new_pw = request.form.get('new_password','')
+    if len(new_pw) >= 4:
+        conn = get_db(); c = conn.cursor()
+        c.execute("UPDATE settings SET value=%s WHERE key='volunteer_password'", (hash_password(new_pw),))
+        conn.commit(); conn.close()
+    return redirect(url_for('dashboard'))
 
 # ── VOLUNTEER AUTH ────────────────────────────────────────
 @app.route('/volunteer/login', methods=['GET','POST'])
@@ -203,8 +217,7 @@ def volunteer_login():
         pw = request.form.get('password','')
         conn = get_db(); c = conn.cursor()
         c.execute("SELECT value FROM settings WHERE key='volunteer_password'")
-        stored = c.fetchone()
-        conn.close()
+        stored = c.fetchone(); conn.close()
         if stored and hash_password(pw) == stored[0]:
             session['volunteer'] = True
             return redirect(url_for('volunteer_dashboard'))
@@ -221,23 +234,18 @@ def volunteer_dashboard():
     if not session.get('volunteer') and not session.get('admin'):
         return redirect(url_for('volunteer_login'))
     conn = get_db(); c = conn.cursor()
-    c.execute('''
-        SELECT e.*, COUNT(a.id) as attendance_count
+    c.execute('''SELECT e.*, COUNT(a.id) as attendance_count
         FROM events e LEFT JOIN attendance a ON a.event_id=e.id
-        GROUP BY e.id ORDER BY e.event_date DESC
-    ''')
-    all_events = fetchall_dict(c)
-    conn.close()
+        GROUP BY e.id ORDER BY e.event_date DESC''')
+    all_events = fetchall_dict(c); conn.close()
     today = date.today()
     active = []
     for e in all_events:
         try:
             edate = datetime.strptime(str(e['event_date']), '%Y-%m-%d').date()
             if edate <= today <= edate + timedelta(days=2):
-                e['window_open'] = True
-                active.append(e)
-        except:
-            pass
+                e['window_open'] = True; active.append(e)
+        except: pass
     return render_template('volunteer_dashboard.html', active=active)
 
 @app.route('/volunteer/attendance/<int:id>')
@@ -247,27 +255,32 @@ def volunteer_attendance(id):
     conn = get_db(); c = conn.cursor()
     c.execute('SELECT * FROM events WHERE id=%s', (id,))
     event = fetchone_dict(c)
-    if not event:
+    if not event: conn.close(); return redirect(url_for('volunteer_dashboard'))
+    # Route to correct attendance flow based on event type
+    if event.get('event_type') == 'sabha':
+        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present'", (id,))
+        marked_ids = [r[0] for r in c.fetchall()]
+        c.execute('SELECT id, name, mobile FROM satsangis ORDER BY name')
+        all_satsangis = fetchall_dict(c)
         conn.close()
-        return redirect(url_for('volunteer_dashboard'))
-    c.execute('SELECT * FROM buildings ORDER BY name')
-    buildings = fetchall_dict(c)
-    c.execute('SELECT student_id FROM attendance WHERE event_id=%s', (id,))
-    marked_ids = [r[0] for r in c.fetchall()]
-    c.execute('''
-        SELECT s.id, s.name, s.roll_number, r.room_number,
+        return render_template('sabha_attendance.html', event=event, marked_ids=marked_ids,
+                               all_satsangis=all_satsangis,
+                               window_open=is_attendance_open(event['event_date']))
+    else:
+        c.execute('SELECT * FROM buildings ORDER BY name')
+        buildings = fetchall_dict(c)
+        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='student'", (id,))
+        marked_ids = [r[0] for r in c.fetchall()]
+        c.execute('''SELECT s.id, s.name, s.roll_number, r.room_number,
                b.name as building_name, b.id as building_id, r.id as room_id
-        FROM students s
-        LEFT JOIN rooms r ON s.room_id=r.id
-        LEFT JOIN buildings b ON r.building_id=b.id
-        ORDER BY s.name
-    ''')
-    all_students = fetchall_dict(c)
-    window_open = is_attendance_open(event['event_date'])
-    conn.close()
-    return render_template('attendance.html', event=event, buildings=buildings,
-                           marked_ids=marked_ids, all_students=all_students,
-                           window_open=window_open, volunteer_mode=True)
+            FROM students s
+            LEFT JOIN rooms r ON s.room_id=r.id
+            LEFT JOIN buildings b ON r.building_id=b.id ORDER BY s.name''')
+        all_students = fetchall_dict(c); conn.close()
+        return render_template('attendance.html', event=event, buildings=buildings,
+                               marked_ids=marked_ids, all_students=all_students,
+                               window_open=is_attendance_open(event['event_date']),
+                               volunteer_mode=True)
 
 @app.route('/volunteer/report/<int:eid>')
 def volunteer_report(eid):
@@ -275,46 +288,216 @@ def volunteer_report(eid):
         return redirect(url_for('volunteer_login'))
     conn = get_db(); c = conn.cursor()
     c.execute('SELECT * FROM events WHERE id=%s', (eid,))
-    event = fetchone_dict(c)
-    conn.close()
-    maybe_auto_mark_absent(eid, event['event_date'])
+    event = fetchone_dict(c); conn.close()
+    maybe_auto_mark_absent(eid, event['event_date'], event.get('event_type','hostel'))
     conn = get_db(); c = conn.cursor()
-    c.execute('''
-        SELECT s.*, a.status, r.room_number, b.name as building_name
-        FROM attendance a JOIN students s ON a.student_id=s.id
-        LEFT JOIN rooms r ON s.room_id=r.id
-        LEFT JOIN buildings b ON r.building_id=b.id
-        WHERE a.event_id=%s ORDER BY a.status ASC, b.name, r.room_number, s.name
-    ''', (eid,))
-    records = fetchall_dict(c)
-    c.execute('SELECT COUNT(*) FROM students')
-    total = c.fetchone()[0]
+    if event.get('event_type') == 'sabha':
+        c.execute('''SELECT s.id, s.name, s.mobile as phone, NULL as room_number,
+            NULL as building_name, a.status
+            FROM attendance a JOIN satsangis s ON a.person_id=s.id
+            WHERE a.event_id=%s AND a.person_type='satsangi'
+            ORDER BY a.status ASC, s.name''', (eid,))
+        c.execute('SELECT COUNT(*) FROM satsangis')
+    else:
+        c.execute('''SELECT s.id, s.name, s.phone, r.room_number,
+            b.name as building_name, a.status
+            FROM attendance a JOIN students s ON a.person_id=s.id
+            LEFT JOIN rooms r ON s.room_id=r.id
+            LEFT JOIN buildings b ON r.building_id=b.id
+            WHERE a.event_id=%s AND a.person_type='student'
+            ORDER BY a.status ASC, b.name, r.room_number, s.name''', (eid,))
+        c.execute('SELECT COUNT(*) FROM students')
+    # Refetch properly
     conn.close()
+    conn = get_db(); c = conn.cursor()
+    if event.get('event_type') == 'sabha':
+        c.execute('''SELECT s.id, s.name, s.mobile as phone, NULL as room_number,
+            NULL as building_name, a.status
+            FROM attendance a JOIN satsangis s ON a.person_id=s.id
+            WHERE a.event_id=%s AND a.person_type='satsangi'
+            ORDER BY a.status ASC, s.name''', (eid,))
+        records = fetchall_dict(c)
+        c.execute('SELECT COUNT(*) FROM satsangis')
+    else:
+        c.execute('''SELECT s.id, s.name, s.phone, r.room_number,
+            b.name as building_name, a.status
+            FROM attendance a JOIN students s ON a.person_id=s.id
+            LEFT JOIN rooms r ON s.room_id=r.id
+            LEFT JOIN buildings b ON r.building_id=b.id
+            WHERE a.event_id=%s AND a.person_type='student'
+            ORDER BY a.status ASC, b.name, r.room_number, s.name''', (eid,))
+        records = fetchall_dict(c)
+        c.execute('SELECT COUNT(*) FROM students')
+    total = c.fetchone()[0]; conn.close()
     return render_template('attendance_report.html', event=event, records=records,
                            total=total, volunteer_mode=True)
 
-# ── SETTINGS ─────────────────────────────────────────────
-@app.route('/settings/volunteer-password', methods=['POST'])
-def update_volunteer_password():
-    new_pw = request.form.get('new_password','')
-    if len(new_pw) >= 4:
+# ── SATSANGIS CRUD ────────────────────────────────────────
+@app.route('/satsangis')
+def satsangis():
+    conn = get_db(); c = conn.cursor()
+    search = request.args.get('q','').strip()
+    if search:
+        c.execute("SELECT * FROM satsangis WHERE name ILIKE %s OR mobile ILIKE %s ORDER BY name",
+                  (f'%{search}%', f'%{search}%'))
+    else:
+        c.execute('SELECT * FROM satsangis ORDER BY name')
+    satsangis = fetchall_dict(c); conn.close()
+    return render_template('satsangis.html', satsangis=satsangis, search=search)
+
+@app.route('/satsangis/add', methods=['GET','POST'])
+def add_satsangi():
+    if request.method == 'POST':
         conn = get_db(); c = conn.cursor()
-        c.execute("UPDATE settings SET value=%s WHERE key='volunteer_password'", (hash_password(new_pw),))
+        c.execute('INSERT INTO satsangis (name, mobile, address) VALUES (%s,%s,%s)',
+                  (request.form['name'], request.form.get('mobile',''), request.form.get('address','')))
         conn.commit(); conn.close()
-    return redirect(url_for('dashboard'))
+        return redirect(url_for('satsangis'))
+    return render_template('satsangi_form.html', satsangi=None)
+
+@app.route('/satsangis/<int:id>/edit', methods=['GET','POST'])
+def edit_satsangi(id):
+    conn = get_db(); c = conn.cursor()
+    if request.method == 'POST':
+        c.execute('UPDATE satsangis SET name=%s, mobile=%s, address=%s WHERE id=%s',
+                  (request.form['name'], request.form.get('mobile',''), request.form.get('address',''), id))
+        conn.commit(); conn.close()
+        return redirect(url_for('satsangis'))
+    c.execute('SELECT * FROM satsangis WHERE id=%s', (id,))
+    satsangi = fetchone_dict(c); conn.close()
+    return render_template('satsangi_form.html', satsangi=satsangi)
+
+@app.route('/satsangis/<int:id>/delete', methods=['POST'])
+def delete_satsangi(id):
+    conn = get_db(); c = conn.cursor()
+    c.execute('DELETE FROM satsangis WHERE id=%s', (id,))
+    conn.commit(); conn.close()
+    return redirect(url_for('satsangis'))
+
+# ── EVENTS (combined sabha + hostel) ─────────────────────
+@app.route('/events')
+def events():
+    conn = get_db(); c = conn.cursor()
+    c.execute('''SELECT e.*, COUNT(a.id) as attendance_count
+        FROM events e LEFT JOIN attendance a ON a.event_id=e.id
+        GROUP BY e.id ORDER BY e.event_date DESC''')
+    events_raw = fetchall_dict(c); conn.close()
+    active, upcoming, past = categorize_events(events_raw)
+    return render_template('events.html', active=active, upcoming=upcoming, past=past,
+                           today_str=date.today().strftime('%Y-%m-%d'))
+
+# Keep /assembly pointing to same place for backward compat
+@app.route('/assembly')
+def assembly():
+    return redirect(url_for('events'))
+
+@app.route('/events/add', methods=['GET','POST'])
+def add_event():
+    event_type = request.args.get('type', 'hostel')
+    if request.method == 'POST':
+        event_type = request.form.get('event_type', 'hostel')
+        conn = get_db(); c = conn.cursor()
+        c.execute('INSERT INTO events (title, event_date, event_type, description) VALUES (%s,%s,%s,%s)',
+                  (request.form['title'], request.form['event_date'],
+                   event_type, request.form.get('description','')))
+        conn.commit(); conn.close()
+        return redirect(url_for('events'))
+    return render_template('event_form.html', event=None,
+                           today=date.today().strftime('%Y-%m-%d'),
+                           event_type=event_type)
+
+@app.route('/events/<int:id>/edit', methods=['GET','POST'])
+def edit_event(id):
+    conn = get_db(); c = conn.cursor()
+    if request.method == 'POST':
+        c.execute('UPDATE events SET title=%s, event_date=%s, event_type=%s, description=%s WHERE id=%s',
+                  (request.form['title'], request.form['event_date'],
+                   request.form.get('event_type','hostel'), request.form.get('description',''), id))
+        conn.commit(); conn.close()
+        return redirect(url_for('events'))
+    c.execute('SELECT * FROM events WHERE id=%s', (id,))
+    event = fetchone_dict(c); conn.close()
+    return render_template('event_form.html', event=event,
+                           today=date.today().strftime('%Y-%m-%d'),
+                           event_type=event.get('event_type','hostel'))
+
+@app.route('/events/<int:id>/delete', methods=['POST'])
+def delete_event(id):
+    conn = get_db(); c = conn.cursor()
+    c.execute('DELETE FROM events WHERE id=%s', (id,))
+    conn.commit(); conn.close()
+    return redirect(url_for('events'))
+
+@app.route('/events/<int:id>/attendance')
+def take_attendance(id):
+    conn = get_db(); c = conn.cursor()
+    c.execute('SELECT * FROM events WHERE id=%s', (id,))
+    event = fetchone_dict(c)
+    if event.get('event_type') == 'sabha':
+        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present'", (id,))
+        marked_ids = [r[0] for r in c.fetchall()]
+        c.execute('SELECT id, name, mobile FROM satsangis ORDER BY name')
+        all_satsangis = fetchall_dict(c); conn.close()
+        return render_template('sabha_attendance.html', event=event, marked_ids=marked_ids,
+                               all_satsangis=all_satsangis,
+                               window_open=is_attendance_open(event['event_date']))
+    else:
+        c.execute('SELECT * FROM buildings ORDER BY name')
+        buildings = fetchall_dict(c)
+        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='student'", (id,))
+        marked_ids = [r[0] for r in c.fetchall()]
+        c.execute('''SELECT s.id, s.name, s.roll_number, r.room_number,
+               b.name as building_name, b.id as building_id, r.id as room_id
+            FROM students s LEFT JOIN rooms r ON s.room_id=r.id
+            LEFT JOIN buildings b ON r.building_id=b.id ORDER BY s.name''')
+        all_students = fetchall_dict(c); conn.close()
+        return render_template('attendance.html', event=event, buildings=buildings,
+                               marked_ids=marked_ids, all_students=all_students,
+                               window_open=is_attendance_open(event['event_date']),
+                               volunteer_mode=False)
+
+@app.route('/events/<int:eid>/report')
+def event_report(eid):
+    conn = get_db(); c = conn.cursor()
+    c.execute('SELECT * FROM events WHERE id=%s', (eid,))
+    event = fetchone_dict(c); conn.close()
+    maybe_auto_mark_absent(eid, event['event_date'], event.get('event_type','hostel'))
+    conn = get_db(); c = conn.cursor()
+    if event.get('event_type') == 'sabha':
+        c.execute('''SELECT s.id, s.name, s.mobile as phone, NULL as room_number,
+            NULL as building_name, a.status
+            FROM attendance a JOIN satsangis s ON a.person_id=s.id
+            WHERE a.event_id=%s AND a.person_type='satsangi'
+            ORDER BY a.status ASC, s.name''', (eid,))
+        records = fetchall_dict(c)
+        c.execute('SELECT COUNT(*) FROM satsangis')
+    else:
+        c.execute('''SELECT s.id, s.name, s.phone, r.room_number,
+            b.name as building_name, a.status
+            FROM attendance a JOIN students s ON a.person_id=s.id
+            LEFT JOIN rooms r ON s.room_id=r.id
+            LEFT JOIN buildings b ON r.building_id=b.id
+            WHERE a.event_id=%s AND a.person_type='student'
+            ORDER BY a.status ASC, b.name, r.room_number, s.name''', (eid,))
+        records = fetchall_dict(c)
+        c.execute('SELECT COUNT(*) FROM students')
+    total = c.fetchone()[0]; conn.close()
+    return render_template('attendance_report.html', event=event, records=records,
+                           total=total, volunteer_mode=False)
+
+# Keep old URL working
+@app.route('/assembly/<int:eid>/attendance/report')
+def attendance_report(eid):
+    return redirect(url_for('event_report', eid=eid))
 
 # ── BUILDINGS ─────────────────────────────────────────────
 @app.route('/buildings')
 def buildings():
     conn = get_db(); c = conn.cursor()
-    c.execute('''
-        SELECT b.*, COUNT(r.id) as room_count,
+    c.execute('''SELECT b.*, COUNT(r.id) as room_count,
         (SELECT COUNT(*) FROM students s JOIN rooms r2 ON s.room_id=r2.id WHERE r2.building_id=b.id) as student_count
-        FROM buildings b LEFT JOIN rooms r ON r.building_id=b.id
-        GROUP BY b.id ORDER BY b.name
-    ''')
-    buildings = fetchall_dict(c)
-    conn.close()
+        FROM buildings b LEFT JOIN rooms r ON r.building_id=b.id GROUP BY b.id ORDER BY b.name''')
+    buildings = fetchall_dict(c); conn.close()
     return render_template('buildings.html', buildings=buildings)
 
 @app.route('/buildings/add', methods=['GET','POST'])
@@ -336,8 +519,7 @@ def edit_building(id):
         conn.commit(); conn.close()
         return redirect(url_for('buildings'))
     c.execute('SELECT * FROM buildings WHERE id=%s', (id,))
-    building = fetchone_dict(c)
-    conn.close()
+    building = fetchone_dict(c); conn.close()
     return render_template('building_form.html', building=building)
 
 @app.route('/buildings/<int:id>/delete', methods=['POST'])
@@ -353,13 +535,10 @@ def rooms(bid):
     conn = get_db(); c = conn.cursor()
     c.execute('SELECT * FROM buildings WHERE id=%s', (bid,))
     building = fetchone_dict(c)
-    c.execute('''
-        SELECT r.*, COUNT(s.id) as occupancy
+    c.execute('''SELECT r.*, COUNT(s.id) as occupancy
         FROM rooms r LEFT JOIN students s ON s.room_id=r.id
-        WHERE r.building_id=%s GROUP BY r.id ORDER BY r.floor, r.room_number
-    ''', (bid,))
-    rooms = fetchall_dict(c)
-    conn.close()
+        WHERE r.building_id=%s GROUP BY r.id ORDER BY r.floor, r.room_number''', (bid,))
+    rooms = fetchall_dict(c); conn.close()
     return render_template('rooms.html', rooms=rooms, building=building)
 
 @app.route('/buildings/<int:bid>/rooms/add', methods=['GET','POST'])
@@ -371,8 +550,7 @@ def add_room(bid):
         conn.commit(); conn.close()
         return redirect(url_for('rooms', bid=bid))
     c.execute('SELECT * FROM buildings WHERE id=%s', (bid,))
-    building = fetchone_dict(c)
-    conn.close()
+    building = fetchone_dict(c); conn.close()
     return render_template('room_form.html', room=None, building=building)
 
 @app.route('/rooms/<int:id>/edit', methods=['GET','POST'])
@@ -383,22 +561,19 @@ def edit_room(id):
                   (request.form['room_number'], request.form.get('capacity',4), request.form.get('floor',1), id))
         conn.commit()
         c.execute('SELECT * FROM rooms WHERE id=%s', (id,))
-        room = fetchone_dict(c)
-        conn.close()
+        room = fetchone_dict(c); conn.close()
         return redirect(url_for('rooms', bid=room['building_id']))
     c.execute('SELECT r.*, b.name as building_name FROM rooms r JOIN buildings b ON r.building_id=b.id WHERE r.id=%s', (id,))
     room = fetchone_dict(c)
     c.execute('SELECT * FROM buildings WHERE id=%s', (room['building_id'],))
-    building = fetchone_dict(c)
-    conn.close()
+    building = fetchone_dict(c); conn.close()
     return render_template('room_form.html', room=room, building=building)
 
 @app.route('/rooms/<int:id>/delete', methods=['POST'])
 def delete_room(id):
     conn = get_db(); c = conn.cursor()
     c.execute('SELECT building_id FROM rooms WHERE id=%s', (id,))
-    row = c.fetchone()
-    bid = row[0]
+    bid = c.fetchone()[0]
     c.execute('UPDATE students SET room_id=NULL WHERE room_id=%s', (id,))
     c.execute('DELETE FROM rooms WHERE id=%s', (id,))
     conn.commit(); conn.close()
@@ -408,15 +583,10 @@ def delete_room(id):
 @app.route('/students')
 def students():
     conn = get_db(); c = conn.cursor()
-    c.execute('''
-        SELECT s.*, r.room_number, b.name as building_name
-        FROM students s
-        LEFT JOIN rooms r ON s.room_id=r.id
-        LEFT JOIN buildings b ON r.building_id=b.id
-        ORDER BY s.name
-    ''')
-    students = fetchall_dict(c)
-    conn.close()
+    c.execute('''SELECT s.*, r.room_number, b.name as building_name
+        FROM students s LEFT JOIN rooms r ON s.room_id=r.id
+        LEFT JOIN buildings b ON r.building_id=b.id ORDER BY s.name''')
+    students = fetchall_dict(c); conn.close()
     return render_template('students.html', students=students)
 
 @app.route('/students/add', methods=['GET','POST'])
@@ -432,8 +602,7 @@ def add_student():
     c.execute('SELECT * FROM buildings ORDER BY name')
     buildings = fetchall_dict(c)
     c.execute('SELECT r.*, b.name as bname FROM rooms r JOIN buildings b ON r.building_id=b.id ORDER BY b.name, r.room_number')
-    rooms = fetchall_dict(c)
-    conn.close()
+    rooms = fetchall_dict(c); conn.close()
     return render_template('student_form.html', student=None, buildings=buildings, rooms=rooms)
 
 @app.route('/students/<int:id>/edit', methods=['GET','POST'])
@@ -451,8 +620,7 @@ def edit_student(id):
     c.execute('SELECT * FROM buildings ORDER BY name')
     buildings = fetchall_dict(c)
     c.execute('SELECT r.*, b.name as bname FROM rooms r JOIN buildings b ON r.building_id=b.id ORDER BY b.name, r.room_number')
-    rooms = fetchall_dict(c)
-    conn.close()
+    rooms = fetchall_dict(c); conn.close()
     return render_template('student_form.html', student=student, buildings=buildings, rooms=rooms)
 
 @app.route('/students/<int:id>/delete', methods=['POST'])
@@ -462,125 +630,19 @@ def delete_student(id):
     conn.commit(); conn.close()
     return redirect(url_for('students'))
 
-# ── YOUTH ASSEMBLY ────────────────────────────────────────
-@app.route('/assembly')
-def assembly():
-    conn = get_db(); c = conn.cursor()
-    c.execute('''
-        SELECT e.*, COUNT(a.id) as attendance_count
-        FROM events e LEFT JOIN attendance a ON a.event_id=e.id
-        GROUP BY e.id ORDER BY e.event_date DESC
-    ''')
-    events_raw = fetchall_dict(c)
-    conn.close()
-    today = date.today()
-    active, upcoming, past = [], [], []
-    for e in events_raw:
-        try:
-            edate = datetime.strptime(str(e['event_date']), '%Y-%m-%d').date()
-        except:
-            past.append(e); continue
-        if edate <= today <= edate + timedelta(days=2):
-            e['status'] = 'active'; active.append(e)
-        elif edate > today:
-            e['status'] = 'upcoming'; upcoming.append(e)
-        else:
-            e['status'] = 'past'; past.append(e)
-    upcoming.sort(key=lambda x: str(x['event_date']))
-    return render_template('assembly.html', active=active, upcoming=upcoming, past=past,
-                           today_str=today.strftime('%Y-%m-%d'))
-
-@app.route('/assembly/add', methods=['GET','POST'])
-def add_event():
-    if request.method == 'POST':
-        conn = get_db(); c = conn.cursor()
-        c.execute('INSERT INTO events (title, event_date, description) VALUES (%s,%s,%s)',
-                  (request.form['title'], request.form['event_date'], request.form.get('description','')))
-        conn.commit(); conn.close()
-        return redirect(url_for('assembly'))
-    return render_template('event_form.html', event=None, today=date.today().strftime('%Y-%m-%d'))
-
-@app.route('/assembly/<int:id>/edit', methods=['GET','POST'])
-def edit_event(id):
-    conn = get_db(); c = conn.cursor()
-    if request.method == 'POST':
-        c.execute('UPDATE events SET title=%s, event_date=%s, description=%s WHERE id=%s',
-                  (request.form['title'], request.form['event_date'], request.form.get('description',''), id))
-        conn.commit(); conn.close()
-        return redirect(url_for('assembly'))
-    c.execute('SELECT * FROM events WHERE id=%s', (id,))
-    event = fetchone_dict(c)
-    conn.close()
-    return render_template('event_form.html', event=event, today=date.today().strftime('%Y-%m-%d'))
-
-@app.route('/assembly/<int:id>/delete', methods=['POST'])
-def delete_event(id):
-    conn = get_db(); c = conn.cursor()
-    c.execute('DELETE FROM events WHERE id=%s', (id,))
-    conn.commit(); conn.close()
-    return redirect(url_for('assembly'))
-
-@app.route('/assembly/<int:id>/attendance')
-def take_attendance(id):
-    conn = get_db(); c = conn.cursor()
-    c.execute('SELECT * FROM events WHERE id=%s', (id,))
-    event = fetchone_dict(c)
-    c.execute('SELECT * FROM buildings ORDER BY name')
-    buildings = fetchall_dict(c)
-    c.execute('SELECT student_id FROM attendance WHERE event_id=%s', (id,))
-    marked_ids = [r[0] for r in c.fetchall()]
-    c.execute('''
-        SELECT s.id, s.name, s.roll_number, r.room_number,
-               b.name as building_name, b.id as building_id, r.id as room_id
-        FROM students s
-        LEFT JOIN rooms r ON s.room_id=r.id
-        LEFT JOIN buildings b ON r.building_id=b.id
-        ORDER BY s.name
-    ''')
-    all_students = fetchall_dict(c)
-    window_open = is_attendance_open(event['event_date'])
-    conn.close()
-    return render_template('attendance.html', event=event, buildings=buildings,
-                           marked_ids=marked_ids, all_students=all_students,
-                           window_open=window_open, volunteer_mode=False)
-
-@app.route('/assembly/<int:eid>/attendance/report')
-def attendance_report(eid):
-    conn = get_db(); c = conn.cursor()
-    c.execute('SELECT * FROM events WHERE id=%s', (eid,))
-    event = fetchone_dict(c)
-    conn.close()
-    maybe_auto_mark_absent(eid, event['event_date'])
-    conn = get_db(); c = conn.cursor()
-    c.execute('''
-        SELECT s.*, a.status, r.room_number, b.name as building_name
-        FROM attendance a JOIN students s ON a.student_id=s.id
-        LEFT JOIN rooms r ON s.room_id=r.id
-        LEFT JOIN buildings b ON r.building_id=b.id
-        WHERE a.event_id=%s ORDER BY a.status ASC, b.name, r.room_number, s.name
-    ''', (eid,))
-    records = fetchall_dict(c)
-    c.execute('SELECT COUNT(*) FROM students')
-    total = c.fetchone()[0]
-    conn.close()
-    return render_template('attendance_report.html', event=event, records=records,
-                           total=total, volunteer_mode=False)
-
 # ── API ───────────────────────────────────────────────────
 @app.route('/api/buildings/<int:bid>/rooms')
 def api_rooms(bid):
     conn = get_db(); c = conn.cursor()
     c.execute('SELECT id, room_number, floor FROM rooms WHERE building_id=%s ORDER BY floor, room_number', (bid,))
-    rooms = fetchall_dict(c)
-    conn.close()
+    rooms = fetchall_dict(c); conn.close()
     return jsonify(rooms)
 
 @app.route('/api/rooms/<int:rid>/students')
 def api_students(rid):
     conn = get_db(); c = conn.cursor()
     c.execute('SELECT id, name, roll_number FROM students WHERE room_id=%s ORDER BY name', (rid,))
-    students = fetchall_dict(c)
-    conn.close()
+    students = fetchall_dict(c); conn.close()
     return jsonify(students)
 
 @app.route('/api/attendance/mark', methods=['POST'])
@@ -592,13 +654,13 @@ def api_mark_attendance():
         event = c.fetchone()
         if not event or not is_attendance_open(event[0]):
             conn.close()
-            return jsonify({'success': False, 'error': 'Attendance window is closed for this event.'})
-        c.execute('INSERT INTO attendance (event_id, student_id, status) VALUES (%s,%s,%s) ON CONFLICT DO NOTHING',
-                  (data['event_id'], data['student_id'], 'present'))
+            return jsonify({'success': False, 'error': 'Attendance window is closed.'})
+        c.execute('''INSERT INTO attendance (event_id, person_id, person_type, status)
+            VALUES (%s,%s,'student','present') ON CONFLICT DO NOTHING''',
+                  (data['event_id'], data['student_id']))
         conn.commit()
-        c.execute('SELECT COUNT(*) FROM attendance WHERE event_id=%s AND status=%s', (data['event_id'], 'present'))
-        count = c.fetchone()[0]
-        conn.close()
+        c.execute("SELECT COUNT(*) FROM attendance WHERE event_id=%s AND person_type='student' AND status='present'", (data['event_id'],))
+        count = c.fetchone()[0]; conn.close()
         return jsonify({'success': True, 'count': count})
     except Exception as e:
         conn.close()
@@ -608,11 +670,54 @@ def api_mark_attendance():
 def api_unmark_attendance():
     data = request.get_json()
     conn = get_db(); c = conn.cursor()
-    c.execute('DELETE FROM attendance WHERE event_id=%s AND student_id=%s', (data['event_id'], data['student_id']))
+    c.execute("DELETE FROM attendance WHERE event_id=%s AND person_id=%s AND person_type='student'",
+              (data['event_id'], data['student_id']))
     conn.commit()
-    c.execute('SELECT COUNT(*) FROM attendance WHERE event_id=%s AND status=%s', (data['event_id'], 'present'))
-    count = c.fetchone()[0]
-    conn.close()
+    c.execute("SELECT COUNT(*) FROM attendance WHERE event_id=%s AND person_type='student' AND status='present'", (data['event_id'],))
+    count = c.fetchone()[0]; conn.close()
+    return jsonify({'success': True, 'count': count})
+
+@app.route('/api/satsangis/search')
+def api_search_satsangis():
+    q = request.args.get('q','').strip()
+    if len(q) < 1:
+        return jsonify([])
+    conn = get_db(); c = conn.cursor()
+    c.execute("SELECT id, name, mobile FROM satsangis WHERE name ILIKE %s OR mobile ILIKE %s ORDER BY name LIMIT 20",
+              (f'%{q}%', f'%{q}%'))
+    results = fetchall_dict(c); conn.close()
+    return jsonify(results)
+
+@app.route('/api/sabha/mark', methods=['POST'])
+def api_mark_sabha():
+    data = request.get_json()
+    conn = get_db(); c = conn.cursor()
+    try:
+        c.execute('SELECT event_date FROM events WHERE id=%s', (data['event_id'],))
+        event = c.fetchone()
+        if not event or not is_attendance_open(event[0]):
+            conn.close()
+            return jsonify({'success': False, 'error': 'Attendance window is closed.'})
+        c.execute('''INSERT INTO attendance (event_id, person_id, person_type, status)
+            VALUES (%s,%s,'satsangi','present') ON CONFLICT DO NOTHING''',
+                  (data['event_id'], data['satsangi_id']))
+        conn.commit()
+        c.execute("SELECT COUNT(*) FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present'", (data['event_id'],))
+        count = c.fetchone()[0]; conn.close()
+        return jsonify({'success': True, 'count': count})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
+
+@app.route('/api/sabha/unmark', methods=['POST'])
+def api_unmark_sabha():
+    data = request.get_json()
+    conn = get_db(); c = conn.cursor()
+    c.execute("DELETE FROM attendance WHERE event_id=%s AND person_id=%s AND person_type='satsangi'",
+              (data['event_id'], data['satsangi_id']))
+    conn.commit()
+    c.execute("SELECT COUNT(*) FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present'", (data['event_id'],))
+    count = c.fetchone()[0]; conn.close()
     return jsonify({'success': True, 'count': count})
 
 # ── IMPORT ────────────────────────────────────────────────
@@ -623,7 +728,7 @@ def import_data():
         f = request.files.get('datafile')
         if f:
             result = {'status': 'pending', 'filename': f.filename,
-                      'message': 'File received. Auto-detection will be implemented once you share the actual file format.'}
+                      'message': 'File received. Auto-detection coming soon.'}
     return render_template('import_data.html', result=result)
 
 # ── STARTUP ───────────────────────────────────────────────

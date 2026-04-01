@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block title %}Satsangis{% endblock %}
+{% block page_title_admin %}Satsangis{% endblock %}
+{% block topbar_actions %}
+<a href="{{ url_for('add_satsangi') }}" class="btn btn-primary">+ Add Satsangi</a>
+{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px;">
+    <form method="GET" style="display:flex;gap:10px;max-width:400px;">
+        <input type="text" name="q" value="{{ search }}" placeholder="Search by name or mobile..." style="flex:1;">
+        <button type="submit" class="btn btn-secondary">Search</button>
+        {% if search %}<a href="{{ url_for('satsangis') }}" class="btn btn-secondary">Clear</a>{% endif %}
+    </form>
+</div>
+
+{% if satsangis %}
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Mobile</th>
+                <th>Address</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for s in satsangis %}
+            <tr>
+                <td style="color:var(--text3);">{{ loop.index }}</td>
+                <td style="font-weight:600;">{{ s.name }}</td>
+                <td>{{ s.mobile or '—' }}</td>
+                <td class="text-muted">{{ s.address or '—' }}</td>
+                <td>
+                    <div class="actions-cell">
+                        <a href="{{ url_for('edit_satsangi', id=s.id) }}" class="btn btn-secondary btn-sm">Edit</a>
+                        <form method="POST" action="{{ url_for('delete_satsangi', id=s.id) }}" class="confirm-delete">
+                            <button type="submit" class="btn btn-danger btn-sm">Delete</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+<div style="margin-top:12px;font-size:12px;color:var(--text3);">{{ satsangis|length }} satsangi{{ 's' if satsangis|length != 1 }}</div>
+{% else %}
+<div class="empty-state">
+    <div class="empty-icon">👥</div>
+    <div class="empty-title">{{ 'No results for "' + search + '"' if search else 'No Satsangis Yet' }}</div>
+    <p class="empty-desc">{{ 'Try a different search term' if search else 'Add satsangis to the system' }}</p>
+    {% if not search %}<a href="{{ url_for('add_satsangi') }}" class="btn btn-primary">+ Add Satsangi</a>{% endif %}
+</div>
+{% endif %}
+{% endblock %}

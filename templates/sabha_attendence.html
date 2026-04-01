@@ -1,0 +1,235 @@
+{% extends 'base.html' %}
+{% block title %}Sabha Attendance — {{ event.title }}{% endblock %}
+{% block page_title %}Sabha Attendance{% endblock %}
+{% block page_title_admin %}Sabha Attendance{% endblock %}
+
+{% block topbar_actions %}
+{% if volunteer_mode is not defined or not volunteer_mode %}
+<a href="{{ url_for('event_report', eid=event.id) }}" class="btn btn-secondary">Report</a>
+<a href="{{ url_for('events') }}" class="btn btn-secondary">← Back</a>
+{% else %}
+<a href="{{ url_for('volunteer_report', eid=event.id) }}" class="btn btn-secondary">Report</a>
+<a href="{{ url_for('volunteer_dashboard') }}" class="btn btn-secondary">← Back</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="breadcrumb">
+    {% if volunteer_mode is defined and volunteer_mode %}
+    <a href="{{ url_for('volunteer_dashboard') }}">Events</a>
+    {% else %}
+    <a href="{{ url_for('events') }}">Events</a>
+    {% endif %}
+    <span class="breadcrumb-sep">›</span>
+    <span>{{ event.title }}</span>
+    <span class="breadcrumb-sep">›</span>
+    <span>Attendance</span>
+</div>
+
+<!-- Event info bar -->
+<div style="background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:var(--shadow-sm);">
+    <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:40px;height:40px;background:#fdf4ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🕌</div>
+        <div>
+            <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:16px;">{{ event.title }}</div>
+            <div style="font-size:12px;color:var(--accent);font-weight:600;margin-top:2px;">📅 {{ event.event_date }}</div>
+        </div>
+    </div>
+    {% if window_open %}
+    <span class="window-badge window-open">● Attendance Open</span>
+    {% else %}
+    <span class="window-badge window-closed">✗ Window Closed</span>
+    {% endif %}
+</div>
+
+{% if not window_open %}
+<div class="locked-banner">
+    <div class="locked-icon">🔒</div>
+    <div>
+        <div class="locked-title">Attendance Window Closed</div>
+        <div class="locked-desc">The attendance window for this event has passed.</div>
+    </div>
+</div>
+{% endif %}
+
+<div class="attendance-layout">
+    <!-- LEFT: Search -->
+    <div>
+        <div class="step-panel">
+            <div class="step-header" style="cursor:default;">
+                <div class="step-num active">🔍</div>
+                <div>
+                    <div class="step-label active">Search Satsangi</div>
+                    <div class="step-sub">Search by name or mobile number</div>
+                </div>
+            </div>
+            <div class="step-content open">
+                <div class="global-search-bar">
+                    <span class="search-icon">🔍</span>
+                    <input type="text" id="sabha-search" placeholder="Type name or mobile..." autocomplete="off" oninput="searchSatsangi(this.value)">
+                </div>
+                <div class="global-search-results" id="sabha-results">
+                    <div class="no-results" style="padding:20px;">Start typing to search satsangis...</div>
+                </div>
+                <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5;">
+                    Click a name to mark present. Click again to unmark.
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Counter + present list -->
+    <div class="summary-panel">
+        <div class="counter-block" style="background:linear-gradient(135deg,#7c3aed,#9b72f5);">
+            <div class="counter-num" id="present-count">{{ marked_ids|length }}</div>
+            <div class="counter-label">Satsangis Present</div>
+        </div>
+        <div class="marked-list-wrap">
+            <div class="marked-list-title">Present</div>
+            <div class="marked-list" id="marked-list">
+                {% if not marked_ids %}
+                <div class="no-results" id="empty-msg">No one marked present yet</div>
+                {% else %}
+                <div class="no-results" id="empty-msg" style="display:none;"></div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const EVENT_ID = {{ event.id }};
+const WINDOW_OPEN = {{ 'true' if window_open else 'false' }};
+const MARKED_IDS = {{ marked_ids | tojson }};
+const ALL_SATSANGIS = {{ all_satsangis | tojson }};
+
+// Pre-populate present list
+window.addEventListener('DOMContentLoaded', () => {
+    const markedSet = new Set(MARKED_IDS);
+    ALL_SATSANGIS.filter(s => markedSet.has(s.id)).forEach(s => addToList(s.id, s.name, s.mobile || '', false));
+});
+
+function searchSatsangi(q) {
+    const results = document.getElementById('sabha-results');
+    if (!q.trim()) {
+        results.innerHTML = '<div class="no-results" style="padding:20px;">Start typing to search satsangis...</div>';
+        results.classList.add('visible');
+        return;
+    }
+    const lower = q.toLowerCase();
+    const matches = ALL_SATSANGIS.filter(s =>
+        s.name.toLowerCase().includes(lower) || (s.mobile && s.mobile.includes(q))
+    );
+    if (matches.length === 0) {
+        results.innerHTML = '<div class="no-results" style="padding:20px;">No satsangis found</div>';
+    } else {
+        results.innerHTML = matches.map(s => {
+            const present = MARKED_IDS.includes(s.id);
+            return `<div class="search-result-item ${present ? 'already-present' : ''}"
+                onclick="toggleSatsangi(${s.id},'${s.name.replace(/'/g,"\\'")}','${(s.mobile||'').replace(/'/g,"\\'")}',this)">
+                <div>
+                    <div class="result-name">${s.name}</div>
+                    <div class="result-info">${s.mobile || 'No mobile'}</div>
+                </div>
+                <span class="result-badge" id="rb-${s.id}">${present ? '✓ Present' : ''}</span>
+            </div>`;
+        }).join('');
+    }
+    results.classList.add('visible');
+}
+
+async function toggleSatsangi(id, name, mobile, el) {
+    const present = MARKED_IDS.includes(id);
+    if (!present) {
+        if (!WINDOW_OPEN) { showToast('Attendance window is closed', 'error'); return; }
+        const res = await fetch('/api/sabha/mark', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({event_id: EVENT_ID, satsangi_id: id})
+        });
+        const data = await res.json();
+        if (data.success) {
+            MARKED_IDS.push(id);
+            document.getElementById('present-count').textContent = data.count;
+            el.classList.add('already-present');
+            const rb = document.getElementById('rb-' + id);
+            if (rb) rb.textContent = '✓ Present';
+            addToList(id, name, mobile, true);
+            showToast(name + ' marked present', 'success');
+        } else {
+            showToast(data.error || 'Failed', 'error');
+        }
+    } else {
+        const res = await fetch('/api/sabha/unmark', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({event_id: EVENT_ID, satsangi_id: id})
+        });
+        const data = await res.json();
+        if (data.success) {
+            MARKED_IDS.splice(MARKED_IDS.indexOf(id), 1);
+            document.getElementById('present-count').textContent = data.count;
+            el.classList.remove('already-present');
+            const rb = document.getElementById('rb-' + id);
+            if (rb) rb.textContent = '';
+            removeFromList(id);
+            showToast('Removed', 'info');
+        }
+    }
+}
+
+function addToList(id, name, mobile, animate) {
+    document.getElementById('empty-msg').style.display = 'none';
+    if (document.getElementById('ml-' + id)) return;
+    const list = document.getElementById('marked-list');
+    const item = document.createElement('div');
+    item.className = 'marked-item'; item.id = 'ml-' + id;
+    if (!animate) item.style.animation = 'none';
+    item.innerHTML = `<div class="marked-dot"></div>
+        <div class="marked-name">${name}</div>
+        ${mobile ? `<div class="marked-room">${mobile}</div>` : ''}
+        <button class="remove-btn" onclick="unmarkById(${id},'${name.replace(/'/g,"\\'")}','${mobile.replace(/'/g,"\\'")}')">×</button>`;
+    list.appendChild(item);
+}
+
+function removeFromList(id) {
+    const el = document.getElementById('ml-' + id);
+    if (el) { el.style.opacity='0'; el.style.transition='opacity 0.2s'; setTimeout(()=>el.remove(),200); }
+    if (MARKED_IDS.length === 0) document.getElementById('empty-msg').style.display='';
+}
+
+async function unmarkById(id, name, mobile) {
+    const el = document.querySelector(`.search-result-item[onclick*="toggleSatsangi(${id},"]`);
+    if (el) { await toggleSatsangi(id, name, mobile, el); }
+    else {
+        const res = await fetch('/api/sabha/unmark', {
+            method:'POST', headers:{'Content-Type':'application/json'},
+            body: JSON.stringify({event_id: EVENT_ID, satsangi_id: id})
+        });
+        const data = await res.json();
+        if (data.success) {
+            MARKED_IDS.splice(MARKED_IDS.indexOf(id), 1);
+            document.getElementById('present-count').textContent = data.count;
+            removeFromList(id);
+        }
+    }
+}
+
+function showToast(msg, type='success') {
+    const icons = {success:'✓', error:'✗', info:'○'};
+    const t = document.createElement('div');
+    t.className = `toast ${type}`;
+    t.innerHTML = `<span class="t-icon">${icons[type]||'●'}</span> ${msg}`;
+    document.body.appendChild(t);
+    setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity 0.3s'; }, 2200);
+    setTimeout(()=>t.remove(), 2500);
+}
+
+document.addEventListener('click', e => {
+    if (!e.target.closest('#sabha-search') && !e.target.closest('#sabha-results'))
+        document.getElementById('sabha-results').classList.remove('visible');
+});
+document.getElementById('sabha-search').addEventListener('focus', () => {
+    if (document.getElementById('sabha-search').value)
+        document.getElementById('sabha-results').classList.add('visible');
+});
+</script>
+{% endblock %}
