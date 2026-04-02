@@ -29,10 +29,14 @@
             <span class="nav-icon">◆</span> All Events
         </a></li>
         <li><a href="{{ url_for('add_event', type='sabha') }}" onclick="closeSidebar()" style="{% if request.endpoint == 'add_event' and request.args.get('type')=='sabha' %}color:var(--accent);{% endif %}">
-            <span class="nav-icon">🕌</span> New Sabha Event
+            <span class="nav-icon">🙏</span> New Sabha Event
         </a></li>
         <li><a href="{{ url_for('add_event', type='hostel') }}" onclick="closeSidebar()" style="{% if request.endpoint == 'add_event' and request.args.get('type')=='hostel' %}color:var(--accent);{% endif %}">
             <span class="nav-icon">🏠</span> New Hostel Event
+        </a></li>
+
+        <li><a href="{{ url_for('analytics') }}" class="{% if request.endpoint == 'analytics' %}active{% endif %}" onclick="closeSidebar()">
+            <span class="nav-icon">📊</span> Analytics
         </a></li>
 
         <li class="nav-section">SABHA</li>

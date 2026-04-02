@@ -1,0 +1,213 @@
+{% extends 'base.html' %}
+{% block title %}Analytics{% endblock %}
+{% block page_title_admin %}Analytics{% endblock %}
+
+{% block content %}
+<style>
+.chart-card { background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-sm);margin-bottom:24px; }
+.chart-title { font-family:'Playfair Display',serif;font-size:16px;font-weight:700;margin-bottom:18px; }
+.chart-wrap { position:relative;height:260px; }
+.filter-bar { display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap; }
+.filter-bar input, .filter-bar select { padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-size:13px;background:var(--bg);color:var(--text);outline:none; }
+.filter-bar input:focus,.filter-bar select:focus { border-color:var(--accent); }
+.pct-bar-wrap { width:100%;background:var(--bg3);border-radius:20px;height:8px;overflow:hidden; }
+.pct-bar { height:8px;border-radius:20px;transition:width 0.4s ease; }
+</style>
+
+<!-- Attendance trend tabs -->
+<div style="display:flex;gap:10px;margin-bottom:20px;">
+    <button onclick="showTab('hostel')" id="tab-hostel" class="btn btn-primary btn-sm">🏠 Hostel Trend</button>
+    <button onclick="showTab('sabha')" id="tab-sabha" class="btn btn-secondary btn-sm">🙏 Sabha Trend</button>
+    <button onclick="showTab('students')" id="tab-students" class="btn btn-secondary btn-sm">◉ Per Student</button>
+</div>
+
+<!-- Hostel Trend Chart -->
+<div id="pane-hostel">
+    <div class="chart-card">
+        <div class="chart-title">🏠 Hostel Assembly — Attendance Trend</div>
+        {% if hostel_trend %}
+        <div class="chart-wrap"><canvas id="hostelChart"></canvas></div>
+        {% else %}
+        <div class="empty-state" style="padding:40px 0;"><div class="empty-icon">📊</div><div class="empty-title">No hostel events yet</div></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Sabha Trend Chart -->
+<div id="pane-sabha" style="display:none;">
+    <div class="chart-card">
+        <div class="chart-title">🙏 Sabha — Attendance Trend</div>
+        {% if sabha_trend %}
+        <div class="chart-wrap"><canvas id="sabhaChart"></canvas></div>
+        {% else %}
+        <div class="empty-state" style="padding:40px 0;"><div class="empty-icon">📊</div><div class="empty-title">No sabha events yet</div></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Per Student -->
+<div id="pane-students" style="display:none;">
+    <div class="chart-card">
+        <div class="chart-title">◉ Per Student — Hostel Assembly Attendance</div>
+
+        {% if total_hostel_events > 0 %}
+        <div class="filter-bar">
+            <input type="text" id="student-filter" placeholder="Search student..." oninput="filterStudents(this.value)">
+            <select id="sort-select" onchange="sortStudents(this.value)">
+                <option value="present">Sort: Most Present</option>
+                <option value="absent">Sort: Most Absent</option>
+                <option value="pct">Sort: % Attendance</option>
+                <option value="name">Sort: Name A-Z</option>
+            </select>
+        </div>
+
+        <div class="table-wrap">
+            <table id="student-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Student</th>
+                        <th>Room</th>
+                        <th>Present</th>
+                        <th>Absent</th>
+                        <th>Attendance %</th>
+                    </tr>
+                </thead>
+                <tbody id="student-tbody">
+                {% for s in student_stats %}
+                {% set pct = ((s.present_count / total_hostel_events) * 100) | round(0) | int if total_hostel_events else 0 %}
+                {% set color = 'var(--green)' if pct >= 75 else ('var(--orange)' if pct >= 50 else 'var(--red)') %}
+                <tr data-name="{{ s.name|lower }}" data-present="{{ s.present_count }}" data-absent="{{ s.absent_count }}" data-pct="{{ pct }}">
+                    <td style="color:var(--text3);">{{ loop.index }}</td>
+                    <td>
+                        <div style="font-weight:600;">{{ s.name }}</div>
+                        {% if s.roll_number %}<div style="font-size:11px;color:var(--text3);">{{ s.roll_number }}</div>{% endif %}
+                    </td>
+                    <td style="font-size:12px;color:var(--text2);">
+                        {% if s.building_name %}{{ s.building_name }}{% endif %}
+                        {% if s.room_number %} · Rm {{ s.room_number }}{% endif %}
+                        {% if not s.building_name and not s.room_number %}—{% endif %}
+                    </td>
+                    <td><span class="badge badge-green">{{ s.present_count }}</span></td>
+                    <td><span class="badge badge-red">{{ s.absent_count }}</span></td>
+                    <td style="min-width:120px;">
+                        <div style="display:flex;align-items:center;gap:8px;">
+                            <div class="pct-bar-wrap" style="flex:1;">
+                                <div class="pct-bar" style="width:{{ pct }}%;background:{{ color }};"></div>
+                            </div>
+                            <div style="font-weight:700;font-size:13px;color:{{ color }};width:36px;text-align:right;">{{ pct }}%</div>
+                        </div>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:40px 0;"><div class="empty-icon">◉</div><div class="empty-title">No hostel events with attendance yet</div></div>
+        {% endif %}
+    </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+<script>
+// ── Tab switching ──
+function showTab(tab) {
+    ['hostel','sabha','students'].forEach(t => {
+        document.getElementById('pane-' + t).style.display = t === tab ? '' : 'none';
+        const btn = document.getElementById('tab-' + t);
+        btn.className = t === tab ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
+    });
+}
+
+// ── Chart colors ──
+const green = '#16a34a', greenLight = 'rgba(22,163,74,0.12)';
+const blue = '#2563eb',  blueLight  = 'rgba(37,99,235,0.12)';
+const purple = '#7c3aed', purpleLight = 'rgba(124,58,237,0.12)';
+
+// ── Hostel chart ──
+{% if hostel_trend %}
+const hostelData = {{ hostel_trend | tojson }};
+new Chart(document.getElementById('hostelChart'), {
+    type: 'line',
+    data: {
+        labels: hostelData.map(d => d.event_date),
+        datasets: [{
+            label: 'Present',
+            data: hostelData.map(d => d.present_count),
+            borderColor: green, backgroundColor: greenLight,
+            fill: true, tension: 0.35, pointRadius: 5, pointHoverRadius: 7
+        }, {
+            label: 'Absent',
+            data: hostelData.map(d => d.absent_count),
+            borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)',
+            fill: true, tension: 0.35, pointRadius: 5, pointHoverRadius: 7
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+});
+{% endif %}
+
+// ── Sabha chart ──
+{% if sabha_trend %}
+const sabhaData = {{ sabha_trend | tojson }};
+new Chart(document.getElementById('sabhaChart'), {
+    type: 'line',
+    data: {
+        labels: sabhaData.map(d => d.event_date),
+        datasets: [{
+            label: 'Present',
+            data: sabhaData.map(d => d.present_count),
+            borderColor: purple, backgroundColor: purpleLight,
+            fill: true, tension: 0.35, pointRadius: 5, pointHoverRadius: 7
+        }, {
+            label: 'Absent',
+            data: sabhaData.map(d => d.absent_count),
+            borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)',
+            fill: true, tension: 0.35, pointRadius: 5, pointHoverRadius: 7
+        }]
+    },
+    options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { position: 'top' } },
+        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+    }
+});
+{% endif %}
+
+// ── Student filter + sort ──
+function filterStudents(q) {
+    const lower = q.toLowerCase();
+    document.querySelectorAll('#student-tbody tr').forEach(tr => {
+        tr.style.display = tr.dataset.name.includes(lower) ? '' : 'none';
+    });
+    reIndex();
+}
+
+function sortStudents(by) {
+    const tbody = document.getElementById('student-tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a, b) => {
+        if (by === 'name') return a.dataset.name.localeCompare(b.dataset.name);
+        if (by === 'present') return parseInt(b.dataset.present) - parseInt(a.dataset.present);
+        if (by === 'absent') return parseInt(b.dataset.absent) - parseInt(a.dataset.absent);
+        if (by === 'pct') return parseInt(b.dataset.pct) - parseInt(a.dataset.pct);
+    });
+    rows.forEach(r => tbody.appendChild(r));
+    reIndex();
+}
+
+function reIndex() {
+    let i = 1;
+    document.querySelectorAll('#student-tbody tr').forEach(tr => {
+        if (tr.style.display !== 'none') {
+            tr.cells[0].textContent = i++;
+        }
+    });
+}
+</script>
+{% endblock %}

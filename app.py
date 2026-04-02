@@ -260,7 +260,7 @@ def volunteer_attendance(id):
     if event.get('event_type') == 'sabha':
         c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present'", (id,))
         marked_ids = [r[0] for r in c.fetchall()]
-        c.execute('SELECT id, name, mobile FROM satsangis ORDER BY name')
+        c.execute("SELECT id, name, COALESCE(mobile,'') as mobile, COALESCE(address,'') as address FROM satsangis ORDER BY name")
         all_satsangis = fetchall_dict(c)
         conn.close()
         return render_template('sabha_attendance.html', event=event, marked_ids=marked_ids,
@@ -286,51 +286,42 @@ def volunteer_attendance(id):
 def volunteer_report(eid):
     if not session.get('volunteer') and not session.get('admin'):
         return redirect(url_for('volunteer_login'))
+    return _report(eid, volunteer_mode=True)
+
+# ── SHARED REPORT HELPER ─────────────────────────────────
+def _report(eid, volunteer_mode):
     conn = get_db(); c = conn.cursor()
     c.execute('SELECT * FROM events WHERE id=%s', (eid,))
     event = fetchone_dict(c); conn.close()
-    maybe_auto_mark_absent(eid, event['event_date'], event.get('event_type','hostel'))
+    if not event:
+        return redirect(url_for('volunteer_dashboard') if volunteer_mode else url_for('events'))
+    maybe_auto_mark_absent(eid, event['event_date'], event.get('event_type', 'hostel'))
     conn = get_db(); c = conn.cursor()
     if event.get('event_type') == 'sabha':
-        c.execute('''SELECT s.id, s.name, s.mobile as phone, NULL as room_number,
-            NULL as building_name, a.status
+        c.execute("""SELECT s.id, s.name,
+            COALESCE(s.mobile, '') as mobile,
+            a.status
             FROM attendance a JOIN satsangis s ON a.person_id=s.id
             WHERE a.event_id=%s AND a.person_type='satsangi'
-            ORDER BY a.status ASC, s.name''', (eid,))
-        c.execute('SELECT COUNT(*) FROM satsangis')
-    else:
-        c.execute('''SELECT s.id, s.name, s.phone, r.room_number,
-            b.name as building_name, a.status
-            FROM attendance a JOIN students s ON a.person_id=s.id
-            LEFT JOIN rooms r ON s.room_id=r.id
-            LEFT JOIN buildings b ON r.building_id=b.id
-            WHERE a.event_id=%s AND a.person_type='student'
-            ORDER BY a.status ASC, b.name, r.room_number, s.name''', (eid,))
-        c.execute('SELECT COUNT(*) FROM students')
-    # Refetch properly
-    conn.close()
-    conn = get_db(); c = conn.cursor()
-    if event.get('event_type') == 'sabha':
-        c.execute('''SELECT s.id, s.name, s.mobile as phone, NULL as room_number,
-            NULL as building_name, a.status
-            FROM attendance a JOIN satsangis s ON a.person_id=s.id
-            WHERE a.event_id=%s AND a.person_type='satsangi'
-            ORDER BY a.status ASC, s.name''', (eid,))
+            ORDER BY a.status ASC, s.name""", (eid,))
         records = fetchall_dict(c)
         c.execute('SELECT COUNT(*) FROM satsangis')
     else:
-        c.execute('''SELECT s.id, s.name, s.phone, r.room_number,
-            b.name as building_name, a.status
+        c.execute("""SELECT s.id, s.name,
+            COALESCE(s.phone, '') as phone,
+            COALESCE(r.room_number, '') as room_number,
+            COALESCE(b.name, '') as building_name,
+            a.status
             FROM attendance a JOIN students s ON a.person_id=s.id
             LEFT JOIN rooms r ON s.room_id=r.id
             LEFT JOIN buildings b ON r.building_id=b.id
             WHERE a.event_id=%s AND a.person_type='student'
-            ORDER BY a.status ASC, b.name, r.room_number, s.name''', (eid,))
+            ORDER BY a.status ASC, b.name, r.room_number, s.name""", (eid,))
         records = fetchall_dict(c)
         c.execute('SELECT COUNT(*) FROM students')
     total = c.fetchone()[0]; conn.close()
-    return render_template('attendance_report.html', event=event, records=records,
-                           total=total, volunteer_mode=True)
+    template = 'sabha_report.html' if event.get('event_type') == 'sabha' else 'attendance_report.html'
+    return render_template(template, event=event, records=records, total=total, volunteer_mode=volunteer_mode)
 
 # ── SATSANGIS CRUD ────────────────────────────────────────
 @app.route('/satsangis')
@@ -338,7 +329,7 @@ def satsangis():
     conn = get_db(); c = conn.cursor()
     search = request.args.get('q','').strip()
     if search:
-        c.execute("SELECT * FROM satsangis WHERE name ILIKE %s OR mobile ILIKE %s ORDER BY name",
+        c.execute("SELECT * FROM satsangis WHERE name ILIKE %s OR COALESCE(mobile,'') ILIKE %s ORDER BY name",
                   (f'%{search}%', f'%{search}%'))
     else:
         c.execute('SELECT * FROM satsangis ORDER BY name')
@@ -436,7 +427,7 @@ def take_attendance(id):
     if event.get('event_type') == 'sabha':
         c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present'", (id,))
         marked_ids = [r[0] for r in c.fetchall()]
-        c.execute('SELECT id, name, mobile FROM satsangis ORDER BY name')
+        c.execute("SELECT id, name, COALESCE(mobile,'') as mobile, COALESCE(address,'') as address FROM satsangis ORDER BY name")
         all_satsangis = fetchall_dict(c); conn.close()
         return render_template('sabha_attendance.html', event=event, marked_ids=marked_ids,
                                all_satsangis=all_satsangis,
@@ -593,9 +584,22 @@ def students():
 def add_student():
     conn = get_db(); c = conn.cursor()
     if request.method == 'POST':
+        room_id = request.form.get('room_id') or None
+        error = None
+        if room_id:
+            c.execute('SELECT capacity, COUNT(s.id) as occ FROM rooms r LEFT JOIN students s ON s.room_id=r.id WHERE r.id=%s GROUP BY r.id', (room_id,))
+            row = c.fetchone()
+            if row and row[1] >= row[0]:
+                error = f'Room is full (capacity {row[0]}). Please choose another room or increase capacity.'
+        if error:
+            c.execute('SELECT * FROM buildings ORDER BY name')
+            buildings = fetchall_dict(c)
+            c.execute('SELECT r.*, b.name as bname FROM rooms r JOIN buildings b ON r.building_id=b.id ORDER BY b.name, r.room_number')
+            rooms = fetchall_dict(c); conn.close()
+            return render_template('student_form.html', student=None, buildings=buildings, rooms=rooms, error=error)
         c.execute('INSERT INTO students (name, roll_number, phone, room_id, joining_date) VALUES (%s,%s,%s,%s,%s)',
                   (request.form['name'], request.form.get('roll_number',''),
-                   request.form.get('phone',''), request.form.get('room_id') or None,
+                   request.form.get('phone',''), room_id,
                    request.form.get('joining_date', date.today().strftime('%Y-%m-%d'))))
         conn.commit(); conn.close()
         return redirect(url_for('students'))
@@ -609,9 +613,24 @@ def add_student():
 def edit_student(id):
     conn = get_db(); c = conn.cursor()
     if request.method == 'POST':
+        room_id = request.form.get('room_id') or None
+        error = None
+        if room_id:
+            c.execute('SELECT capacity, COUNT(s.id) as occ FROM rooms r LEFT JOIN students s ON s.room_id=r.id AND s.id!=%s WHERE r.id=%s GROUP BY r.id', (id, room_id))
+            row = c.fetchone()
+            if row and row[1] >= row[0]:
+                error = f'Room is full (capacity {row[0]}). Please choose another room or increase capacity.'
+        if error:
+            c.execute('SELECT * FROM students WHERE id=%s', (id,))
+            student = fetchone_dict(c)
+            c.execute('SELECT * FROM buildings ORDER BY name')
+            buildings = fetchall_dict(c)
+            c.execute('SELECT r.*, b.name as bname FROM rooms r JOIN buildings b ON r.building_id=b.id ORDER BY b.name, r.room_number')
+            rooms = fetchall_dict(c); conn.close()
+            return render_template('student_form.html', student=student, buildings=buildings, rooms=rooms, error=error)
         c.execute('UPDATE students SET name=%s, roll_number=%s, phone=%s, room_id=%s, joining_date=%s WHERE id=%s',
                   (request.form['name'], request.form.get('roll_number',''),
-                   request.form.get('phone',''), request.form.get('room_id') or None,
+                   request.form.get('phone',''), room_id,
                    request.form.get('joining_date',''), id))
         conn.commit(); conn.close()
         return redirect(url_for('students'))
@@ -683,7 +702,7 @@ def api_search_satsangis():
     if len(q) < 1:
         return jsonify([])
     conn = get_db(); c = conn.cursor()
-    c.execute("SELECT id, name, mobile FROM satsangis WHERE name ILIKE %s OR mobile ILIKE %s ORDER BY name LIMIT 20",
+    c.execute("SELECT id, name, COALESCE(mobile,'') as mobile FROM satsangis WHERE name ILIKE %s OR COALESCE(mobile,'') ILIKE %s ORDER BY name LIMIT 20",
               (f'%{q}%', f'%{q}%'))
     results = fetchall_dict(c); conn.close()
     return jsonify(results)
@@ -719,6 +738,63 @@ def api_unmark_sabha():
     c.execute("SELECT COUNT(*) FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present'", (data['event_id'],))
     count = c.fetchone()[0]; conn.close()
     return jsonify({'success': True, 'count': count})
+
+
+# ── ANALYTICS ─────────────────────────────────────────────
+@app.route('/analytics')
+def analytics():
+    conn = get_db(); c = conn.cursor()
+
+    # Hostel events attendance over time
+    c.execute("""
+        SELECT e.event_date, e.title,
+            COUNT(CASE WHEN a.status='present' THEN 1 END) as present_count,
+            COUNT(CASE WHEN a.status='absent' THEN 1 END) as absent_count
+        FROM events e
+        LEFT JOIN attendance a ON a.event_id=e.id AND a.person_type='student'
+        WHERE e.event_type='hostel'
+        GROUP BY e.id ORDER BY e.event_date ASC
+    """)
+    hostel_trend = fetchall_dict(c)
+
+    # Sabha events attendance over time
+    c.execute("""
+        SELECT e.event_date, e.title,
+            COUNT(CASE WHEN a.status='present' THEN 1 END) as present_count,
+            COUNT(CASE WHEN a.status='absent' THEN 1 END) as absent_count
+        FROM events e
+        LEFT JOIN attendance a ON a.event_id=e.id AND a.person_type='satsangi'
+        WHERE e.event_type='sabha'
+        GROUP BY e.id ORDER BY e.event_date ASC
+    """)
+    sabha_trend = fetchall_dict(c)
+
+    # Per-student hostel attendance summary
+    c.execute("""
+        SELECT s.id, s.name, s.roll_number,
+            COALESCE(r.room_number,'') as room_number,
+            COALESCE(b.name,'') as building_name,
+            COUNT(CASE WHEN a.status='present' THEN 1 END) as present_count,
+            COUNT(CASE WHEN a.status='absent'  THEN 1 END) as absent_count,
+            COUNT(a.id) as total_events
+        FROM students s
+        LEFT JOIN rooms r ON s.room_id=r.id
+        LEFT JOIN buildings b ON r.building_id=b.id
+        LEFT JOIN attendance a ON a.person_id=s.id AND a.person_type='student'
+        GROUP BY s.id, s.name, s.roll_number, r.room_number, b.name
+        ORDER BY present_count DESC, s.name
+    """)
+    student_stats = fetchall_dict(c)
+
+    c.execute("SELECT COUNT(*) FROM events WHERE event_type='hostel'")
+    total_hostel_events = c.fetchone()[0]
+
+    conn.close()
+    return render_template('analytics.html',
+                           hostel_trend=hostel_trend,
+                           sabha_trend=sabha_trend,
+                           student_stats=student_stats,
+                           total_hostel_events=total_hostel_events)
 
 # ── IMPORT ────────────────────────────────────────────────
 @app.route('/import', methods=['GET','POST'])

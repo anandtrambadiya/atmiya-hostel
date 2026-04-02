@@ -9,6 +9,11 @@
     <span>{{ 'Edit Student' if student else 'New Student' }}</span>
 </div>
 <div class="form-card">
+    {% if error %}
+    <div style="background:var(--red-light);border:1.5px solid #fecaca;border-radius:9px;padding:11px 14px;margin-bottom:16px;font-size:13px;color:var(--red);">
+        ⚠ {{ error }}
+    </div>
+    {% endif %}
     <form method="POST">
         <div class="form-group">
             <label>Full Name *</label>

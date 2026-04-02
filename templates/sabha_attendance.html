@@ -29,7 +29,7 @@
 <!-- Event info bar -->
 <div style="background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:var(--shadow-sm);">
     <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:40px;height:40px;background:#fdf4ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🕌</div>
+        <div style="width:40px;height:40px;background:#fdf4ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🙏</div>
         <div>
             <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:16px;">{{ event.title }}</div>
             <div style="font-size:12px;color:var(--accent);font-weight:600;margin-top:2px;">📅 {{ event.event_date }}</div>
@@ -57,7 +57,7 @@
     <div>
         <div class="step-panel">
             <div class="step-header" style="cursor:default;">
-                <div class="step-num active">🔍</div>
+                <div class="step-num active" style="font-size:14px;">🔍</div>
                 <div>
                     <div class="step-label active">Search Satsangi</div>
                     <div class="step-sub">Search by name or mobile number</div>
@@ -101,12 +101,17 @@
 const EVENT_ID = {{ event.id }};
 const WINDOW_OPEN = {{ 'true' if window_open else 'false' }};
 const MARKED_IDS = {{ marked_ids | tojson }};
-const ALL_SATSANGIS = {{ all_satsangis | tojson }};
+// Normalize nulls to empty strings to avoid JS errors
+const ALL_SATSANGIS = {{ all_satsangis | tojson }}.map(s => ({
+    ...s,
+    mobile: s.mobile || '',
+    address: s.address || ''
+}));
 
-// Pre-populate present list
+// Pre-populate present list on load
 window.addEventListener('DOMContentLoaded', () => {
     const markedSet = new Set(MARKED_IDS);
-    ALL_SATSANGIS.filter(s => markedSet.has(s.id)).forEach(s => addToList(s.id, s.name, s.mobile || '', false));
+    ALL_SATSANGIS.filter(s => markedSet.has(s.id)).forEach(s => addToList(s.id, s.name, s.mobile, false));
 });
 
 function searchSatsangi(q) {
@@ -118,7 +123,7 @@ function searchSatsangi(q) {
     }
     const lower = q.toLowerCase();
     const matches = ALL_SATSANGIS.filter(s =>
-        s.name.toLowerCase().includes(lower) || (s.mobile && s.mobile.includes(q))
+        s.name.toLowerCase().includes(lower) || s.mobile.includes(q)
     );
     if (matches.length === 0) {
         results.innerHTML = '<div class="no-results" style="padding:20px;">No satsangis found</div>';
@@ -126,7 +131,7 @@ function searchSatsangi(q) {
         results.innerHTML = matches.map(s => {
             const present = MARKED_IDS.includes(s.id);
             return `<div class="search-result-item ${present ? 'already-present' : ''}"
-                onclick="toggleSatsangi(${s.id},'${s.name.replace(/'/g,"\\'")}','${(s.mobile||'').replace(/'/g,"\\'")}',this)">
+                data-sid="${s.id}" onclick="handleResultClick(this)">
                 <div>
                     <div class="result-name">${s.name}</div>
                     <div class="result-info">${s.mobile || 'No mobile'}</div>
@@ -138,12 +143,18 @@ function searchSatsangi(q) {
     results.classList.add('visible');
 }
 
+function handleResultClick(el) {
+    const sid = parseInt(el.dataset.sid);
+    const s = ALL_SATSANGIS.find(x => x.id === sid);
+    if (s) toggleSatsangi(sid, s.name, s.mobile, el);
+}
+
 async function toggleSatsangi(id, name, mobile, el) {
     const present = MARKED_IDS.includes(id);
     if (!present) {
         if (!WINDOW_OPEN) { showToast('Attendance window is closed', 'error'); return; }
         const res = await fetch('/api/sabha/mark', {
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({event_id: EVENT_ID, satsangi_id: id})
         });
         const data = await res.json();
@@ -160,7 +171,7 @@ async function toggleSatsangi(id, name, mobile, el) {
         }
     } else {
         const res = await fetch('/api/sabha/unmark', {
-            method:'POST', headers:{'Content-Type':'application/json'},
+            method: 'POST', headers: {'Content-Type': 'application/json'},
             body: JSON.stringify({event_id: EVENT_ID, satsangi_id: id})
         });
         const data = await res.json();
@@ -186,30 +197,37 @@ function addToList(id, name, mobile, animate) {
     item.innerHTML = `<div class="marked-dot"></div>
         <div class="marked-name">${name}</div>
         ${mobile ? `<div class="marked-room">${mobile}</div>` : ''}
-        <button class="remove-btn" onclick="unmarkById(${id},'${name.replace(/'/g,"\\'")}','${mobile.replace(/'/g,"\\'")}')">×</button>`;
+        <button class="remove-btn" data-uid="${id}" onclick="unmarkById(this)">×</button>`;
     list.appendChild(item);
 }
 
 function removeFromList(id) {
     const el = document.getElementById('ml-' + id);
-    if (el) { el.style.opacity='0'; el.style.transition='opacity 0.2s'; setTimeout(()=>el.remove(),200); }
-    if (MARKED_IDS.length === 0) document.getElementById('empty-msg').style.display='';
+    if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.2s'; setTimeout(() => el.remove(), 200); }
+    if (MARKED_IDS.length === 0) document.getElementById('empty-msg').style.display = '';
 }
 
-async function unmarkById(id, name, mobile) {
-    const el = document.querySelector(`.search-result-item[onclick*="toggleSatsangi(${id},"]`);
-    if (el) { await toggleSatsangi(id, name, mobile, el); }
-    else {
-        const res = await fetch('/api/sabha/unmark', {
-            method:'POST', headers:{'Content-Type':'application/json'},
-            body: JSON.stringify({event_id: EVENT_ID, satsangi_id: id})
-        });
-        const data = await res.json();
-        if (data.success) {
-            MARKED_IDS.splice(MARKED_IDS.indexOf(id), 1);
-            document.getElementById('present-count').textContent = data.count;
-            removeFromList(id);
+async function unmarkById(btn) {
+    const id = parseInt(btn.dataset.uid);
+    const s = ALL_SATSANGIS.find(x => x.id === id);
+    if (!s) return;
+    const res = await fetch('/api/sabha/unmark', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({event_id: EVENT_ID, satsangi_id: id})
+    });
+    const data = await res.json();
+    if (data.success) {
+        MARKED_IDS.splice(MARKED_IDS.indexOf(id), 1);
+        document.getElementById('present-count').textContent = data.count;
+        removeFromList(id);
+        // Update search result if visible
+        const srEl = document.querySelector(`[data-sid="${id}"]`);
+        if (srEl) {
+            srEl.classList.remove('already-present');
+            const rb = document.getElementById('rb-' + id);
+            if (rb) rb.textContent = '';
         }
+        showToast('Removed', 'info');
     }
 }
 
@@ -219,8 +237,8 @@ function showToast(msg, type='success') {
     t.className = `toast ${type}`;
     t.innerHTML = `<span class="t-icon">${icons[type]||'●'}</span> ${msg}`;
     document.body.appendChild(t);
-    setTimeout(()=>{ t.style.opacity='0'; t.style.transition='opacity 0.3s'; }, 2200);
-    setTimeout(()=>t.remove(), 2500);
+    setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; }, 2200);
+    setTimeout(() => t.remove(), 2500);
 }
 
 document.addEventListener('click', e => {
