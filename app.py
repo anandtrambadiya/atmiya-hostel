@@ -97,6 +97,27 @@ def init_db():
     if not c.fetchone():
         c.execute("ALTER TABLE attendance ADD COLUMN person_type TEXT NOT NULL DEFAULT 'student'")
         c.execute("ALTER TABLE attendance RENAME COLUMN student_id TO person_id")
+    # Drop the old student_id FK constraint if it still exists (blocks satsangi inserts)
+    c.execute("""SELECT constraint_name FROM information_schema.table_constraints
+                 WHERE table_name='attendance' AND constraint_type='FOREIGN KEY'
+                 AND constraint_name LIKE '%student%'""")
+    old_fk = c.fetchone()
+    if old_fk:
+        c.execute(f"ALTER TABLE attendance DROP CONSTRAINT {old_fk[0]}")
+    # Also drop person_id FK if it references students (same issue, different name)
+    c.execute("""SELECT tc.constraint_name
+                 FROM information_schema.table_constraints tc
+                 JOIN information_schema.key_column_usage kcu
+                   ON tc.constraint_name=kcu.constraint_name
+                 JOIN information_schema.referential_constraints rc
+                   ON tc.constraint_name=rc.constraint_name
+                 JOIN information_schema.table_constraints tc2
+                   ON rc.unique_constraint_name=tc2.constraint_name
+                 WHERE tc.table_name='attendance' AND tc.constraint_type='FOREIGN KEY'
+                   AND kcu.column_name='person_id'""")
+    person_fk = c.fetchone()
+    if person_fk:
+        c.execute(f"ALTER TABLE attendance DROP CONSTRAINT {person_fk[0]}")
     c.execute('''CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)''')
     c.execute("SELECT value FROM settings WHERE key='volunteer_password'")
     if not c.fetchone():
@@ -449,32 +470,7 @@ def take_attendance(id):
 
 @app.route('/events/<int:eid>/report')
 def event_report(eid):
-    conn = get_db(); c = conn.cursor()
-    c.execute('SELECT * FROM events WHERE id=%s', (eid,))
-    event = fetchone_dict(c); conn.close()
-    maybe_auto_mark_absent(eid, event['event_date'], event.get('event_type','hostel'))
-    conn = get_db(); c = conn.cursor()
-    if event.get('event_type') == 'sabha':
-        c.execute('''SELECT s.id, s.name, s.mobile as phone, NULL as room_number,
-            NULL as building_name, a.status
-            FROM attendance a JOIN satsangis s ON a.person_id=s.id
-            WHERE a.event_id=%s AND a.person_type='satsangi'
-            ORDER BY a.status ASC, s.name''', (eid,))
-        records = fetchall_dict(c)
-        c.execute('SELECT COUNT(*) FROM satsangis')
-    else:
-        c.execute('''SELECT s.id, s.name, s.phone, r.room_number,
-            b.name as building_name, a.status
-            FROM attendance a JOIN students s ON a.person_id=s.id
-            LEFT JOIN rooms r ON s.room_id=r.id
-            LEFT JOIN buildings b ON r.building_id=b.id
-            WHERE a.event_id=%s AND a.person_type='student'
-            ORDER BY a.status ASC, b.name, r.room_number, s.name''', (eid,))
-        records = fetchall_dict(c)
-        c.execute('SELECT COUNT(*) FROM students')
-    total = c.fetchone()[0]; conn.close()
-    return render_template('attendance_report.html', event=event, records=records,
-                           total=total, volunteer_mode=False)
+    return _report(eid, volunteer_mode=False)
 
 # Keep old URL working
 @app.route('/assembly/<int:eid>/attendance/report')
