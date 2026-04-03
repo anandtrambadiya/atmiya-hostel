@@ -149,10 +149,11 @@ def auto_mark_absent(event_id, event_type):
         conn.close()
 
 def maybe_auto_mark_absent(event_id, event_date_str, event_type):
+    """Fill absent for everyone not marked present.
+    Runs always when report is viewed — not just after window closes.
+    ON CONFLICT DO NOTHING means present records are never overwritten."""
     try:
-        edate = datetime.strptime(str(event_date_str), "%Y-%m-%d").date()
-        if date.today() > edate + timedelta(days=2):
-            auto_mark_absent(event_id, event_type)
+        auto_mark_absent(event_id, event_type)
     except:
         pass
 
