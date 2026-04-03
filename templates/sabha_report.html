@@ -31,12 +31,12 @@
 <div class="stats-grid" style="grid-template-columns:repeat(4,1fr);">
     <div class="stat-card green">
         <div class="stat-icon">✓</div>
-        <div class="stat-num">{{ present_list|length }}</div>
+        <div class="stat-num">{{ present_count }}</div>
         <div class="stat-label">Present</div>
     </div>
     <div class="stat-card" style="">
         <div class="stat-icon" style="background:var(--red-light);">✗</div>
-        <div class="stat-num" style="color:var(--red);">{{ absent_list|length }}</div>
+        <div class="stat-num" style="color:var(--red);">{{ absent_count }}</div>
         <div class="stat-label">Absent</div>
     </div>
     <div class="stat-card blue">
