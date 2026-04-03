@@ -25,18 +25,17 @@
     <span>Report</span>
 </div>
 
-{% set present_list = records | selectattr('status', 'equalto', 'present') | list %}
-{% set absent_list  = records | selectattr('status', 'equalto', 'absent')  | list %}
+{# present_count and absent_count passed from backend — accurate even before window closes #}
 
 <div class="stats-grid" style="margin-bottom:24px;">
     <div class="stat-card green">
         <div class="stat-icon">✓</div>
-        <div class="stat-num">{{ present_list | length }}</div>
+        <div class="stat-num">{{ present_count }}</div>
         <div class="stat-label">Present</div>
     </div>
     <div class="stat-card" style="--red:#dc2626;">
         <div class="stat-icon" style="background:var(--red-light);">✗</div>
-        <div class="stat-num" style="color:var(--red);">{{ absent_list | length }}</div>
+        <div class="stat-num" style="color:var(--red);">{{ absent_count }}</div>
         <div class="stat-label">Absent</div>
     </div>
     <div class="stat-card blue">
@@ -46,7 +45,7 @@
     </div>
     <div class="stat-card orange">
         <div class="stat-icon">%</div>
-        <div class="stat-num">{{ "%.0f"|format((present_list|length / total * 100) if total else 0) }}%</div>
+        <div class="stat-num">{{ "%.0f"|format((present_count / total * 100) if total else 0) }}%</div>
         <div class="stat-label">Attendance</div>
     </div>
 </div>

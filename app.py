@@ -149,11 +149,12 @@ def auto_mark_absent(event_id, event_type):
         conn.close()
 
 def maybe_auto_mark_absent(event_id, event_date_str, event_type):
-    """Fill absent for everyone not marked present.
-    Runs always when report is viewed — not just after window closes.
-    ON CONFLICT DO NOTHING means present records are never overwritten."""
+    """Fill absent only after the attendance window is fully closed (event date + 2 days).
+    Safe to run multiple times — ON CONFLICT DO NOTHING skips existing records."""
     try:
-        auto_mark_absent(event_id, event_type)
+        edate = datetime.strptime(str(event_date_str), "%Y-%m-%d").date()
+        if date.today() > edate + timedelta(days=2):
+            auto_mark_absent(event_id, event_type)
     except:
         pass
 
@@ -256,9 +257,9 @@ def volunteer_dashboard():
     if not session.get('volunteer') and not session.get('admin'):
         return redirect(url_for('volunteer_login'))
     conn = get_db(); c = conn.cursor()
-    c.execute('''SELECT e.*, COUNT(a.id) as attendance_count
+    c.execute("""SELECT e.*, COUNT(CASE WHEN a.status='present' THEN 1 END) as attendance_count
         FROM events e LEFT JOIN attendance a ON a.event_id=e.id
-        GROUP BY e.id ORDER BY e.event_date DESC''')
+        GROUP BY e.id ORDER BY e.event_date DESC""")
     all_events = fetchall_dict(c); conn.close()
     today = date.today()
     active = []
@@ -342,8 +343,13 @@ def _report(eid, volunteer_mode):
         records = fetchall_dict(c)
         c.execute('SELECT COUNT(*) FROM students')
     total = c.fetchone()[0]; conn.close()
+    # Count present from records (accurate even before window closes)
+    present_count = sum(1 for r in records if r.get('status') == 'present')
+    absent_count  = total - present_count
     template = 'sabha_report.html' if event.get('event_type') == 'sabha' else 'attendance_report.html'
-    return render_template(template, event=event, records=records, total=total, volunteer_mode=volunteer_mode)
+    return render_template(template, event=event, records=records, total=total,
+                           present_count=present_count, absent_count=absent_count,
+                           volunteer_mode=volunteer_mode)
 
 # ── SATSANGIS CRUD ────────────────────────────────────────
 @app.route('/satsangis')
@@ -391,9 +397,9 @@ def delete_satsangi(id):
 @app.route('/events')
 def events():
     conn = get_db(); c = conn.cursor()
-    c.execute('''SELECT e.*, COUNT(a.id) as attendance_count
+    c.execute("""SELECT e.*, COUNT(CASE WHEN a.status='present' THEN 1 END) as attendance_count
         FROM events e LEFT JOIN attendance a ON a.event_id=e.id
-        GROUP BY e.id ORDER BY e.event_date DESC''')
+        GROUP BY e.id ORDER BY e.event_date DESC""")
     events_raw = fetchall_dict(c); conn.close()
     active, upcoming, past = categorize_events(events_raw)
     return render_template('events.html', active=active, upcoming=upcoming, past=past,
