@@ -227,7 +227,10 @@ def dashboard():
     c.execute('SELECT * FROM events ORDER BY created_at DESC LIMIT 6')
     recent_events = fetchall_dict(c)
     conn.close()
-    return render_template('dashboard.html', stats=stats, recent_events=recent_events)
+    today_str = date.today().strftime("%Y-%m-%d")
+
+
+    return render_template('dashboard.html', stats=stats, recent_events=recent_events, today_str = today_str)
 
 # ── SETTINGS ─────────────────────────────────────────────
 @app.route('/settings/volunteer-password', methods=['POST'])
