@@ -227,11 +227,7 @@ def dashboard():
     c.execute('SELECT * FROM events ORDER BY created_at DESC LIMIT 6')
     recent_events = fetchall_dict(c)
     conn.close()
-
-    today_str = date.today().strftime("%Y-%m-%d")
-
-
-    return render_template('dashboard.html', stats=stats, recent_events=recent_events, today_str = today_str)
+    return render_template('dashboard.html', stats=stats, recent_events=recent_events)
 
 # ── SETTINGS ─────────────────────────────────────────────
 @app.route('/settings/volunteer-password', methods=['POST'])
@@ -765,38 +761,31 @@ def api_unmark_sabha():
 def analytics():
     conn = get_db(); c = conn.cursor()
 
-    # Hostel events attendance over time
-    c.execute("""
-        SELECT e.event_date, e.title,
-            COUNT(CASE WHEN a.status='present' THEN 1 END) as present_count,
-            COUNT(CASE WHEN a.status='absent' THEN 1 END) as absent_count
-        FROM events e
-        LEFT JOIN attendance a ON a.event_id=e.id AND a.person_type='student'
-        WHERE e.event_type='hostel'
-        GROUP BY e.id ORDER BY e.event_date ASC
-    """)
-    hostel_trend = fetchall_dict(c)
+    # ── Trend per event type ──────────────────────────────
+    trends = {}
+    event_counts = {}
+    for etype in ['sunday', 'wednesday', 'balsabha', 'hostel']:
+        ptype = 'student' if etype == 'hostel' else 'satsangi'
+        c.execute("""
+            SELECT e.event_date, e.title,
+                COUNT(CASE WHEN a.status='present' THEN 1 END) as present_count,
+                COUNT(CASE WHEN a.status='absent'  THEN 1 END) as absent_count
+            FROM events e
+            LEFT JOIN attendance a ON a.event_id=e.id AND a.person_type=%s
+            WHERE e.event_type=%s
+            GROUP BY e.id ORDER BY e.event_date ASC
+        """, (ptype, etype))
+        trends[etype] = fetchall_dict(c)
+        c.execute("SELECT COUNT(*) FROM events WHERE event_type=%s", (etype,))
+        event_counts[etype] = c.fetchone()[0]
 
-    # Sabha events attendance over time
+    # ── Per-student hostel stats ──────────────────────────
     c.execute("""
-        SELECT e.event_date, e.title,
-            COUNT(CASE WHEN a.status='present' THEN 1 END) as present_count,
-            COUNT(CASE WHEN a.status='absent' THEN 1 END) as absent_count
-        FROM events e
-        LEFT JOIN attendance a ON a.event_id=e.id AND a.person_type='satsangi'
-        WHERE e.event_type='sabha'
-        GROUP BY e.id ORDER BY e.event_date ASC
-    """)
-    sabha_trend = fetchall_dict(c)
-
-    # Per-student hostel attendance summary
-    c.execute("""
-        SELECT s.id, s.name, s.roll_number,
+        SELECT s.id, s.name, COALESCE(s.roll_number,'') as roll_number,
             COALESCE(r.room_number,'') as room_number,
             COALESCE(b.name,'') as building_name,
             COUNT(CASE WHEN a.status='present' THEN 1 END) as present_count,
-            COUNT(CASE WHEN a.status='absent'  THEN 1 END) as absent_count,
-            COUNT(a.id) as total_events
+            COUNT(CASE WHEN a.status='absent'  THEN 1 END) as absent_count
         FROM students s
         LEFT JOIN rooms r ON s.room_id=r.id
         LEFT JOIN buildings b ON r.building_id=b.id
@@ -806,15 +795,60 @@ def analytics():
     """)
     student_stats = fetchall_dict(c)
 
-    c.execute("SELECT COUNT(*) FROM events WHERE event_type='hostel'")
-    total_hostel_events = c.fetchone()[0]
+    # ── Satsangi regularity analysis ─────────────────────
+    # For each satsangi: how many times present in each sabha type
+    c.execute("""
+        SELECT s.id, s.name, COALESCE(s.mobile,'') as mobile,
+            COUNT(CASE WHEN e.event_type='sunday'    AND a.status='present' THEN 1 END) as sun_present,
+            COUNT(CASE WHEN e.event_type='wednesday' AND a.status='present' THEN 1 END) as wed_present,
+            COUNT(CASE WHEN e.event_type='balsabha'  AND a.status='present' THEN 1 END) as bal_present,
+            COUNT(CASE WHEN e.event_type='sunday'    THEN 1 END) as sun_total,
+            COUNT(CASE WHEN e.event_type='wednesday' THEN 1 END) as wed_total,
+            COUNT(CASE WHEN e.event_type='balsabha'  THEN 1 END) as bal_total
+        FROM satsangis s
+        LEFT JOIN attendance a ON a.person_id=s.id AND a.person_type='satsangi'
+        LEFT JOIN events e ON a.event_id=e.id
+        GROUP BY s.id, s.name, s.mobile
+        ORDER BY (
+            COUNT(CASE WHEN a.status='present' THEN 1 END)
+        ) DESC, s.name
+    """)
+    satsangi_stats = fetchall_dict(c)
+
+    # Classify each satsangi by regularity pattern
+    THRESHOLD = 0.6  # 60%+ attendance = "regular" for that type
+    for s in satsangi_stats:
+        types = []
+        for key, total_key, label in [
+            ('sun_present','sun_total','Sunday'),
+            ('wed_present','wed_total','Wednesday'),
+            ('bal_present','bal_total','Bal Sabha'),
+        ]:
+            total = s[total_key]
+            present = s[key]
+            if total > 0 and present / total >= THRESHOLD:
+                types.append(label)
+        if len(types) == 0:
+            s['regularity'] = 'Irregular'
+            s['reg_class'] = 'irregular'
+        elif len(types) == 3:
+            s['regularity'] = 'All Sabha'
+            s['reg_class'] = 'all'
+        elif len(types) == 1:
+            s['regularity'] = f'{types[0]} Regular'
+            s['reg_class'] = types[0].lower().replace(' ','')
+        else:
+            s['regularity'] = ' + '.join(types)
+            s['reg_class'] = 'multi'
+        s['total_present'] = s['sun_present'] + s['wed_present'] + s['bal_present']
+        s['total_events']  = s['sun_total']   + s['wed_total']   + s['bal_total']
 
     conn.close()
     return render_template('analytics.html',
-                           hostel_trend=hostel_trend,
-                           sabha_trend=sabha_trend,
+                           trends=trends,
+                           event_counts=event_counts,
                            student_stats=student_stats,
-                           total_hostel_events=total_hostel_events)
+                           satsangi_stats=satsangi_stats)
 
 # ── QUICK ADD SATSANGI (from attendance page) ──────────────
 @app.route('/api/satsangis/quick-add', methods=['POST'])

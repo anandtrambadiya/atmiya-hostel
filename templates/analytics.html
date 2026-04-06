@@ -4,78 +4,96 @@
 
 {% block content %}
 <style>
-.chart-card { background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-sm);margin-bottom:24px; }
-.chart-title { font-family:'Playfair Display',serif;font-size:16px;font-weight:700;margin-bottom:18px; }
-.chart-wrap { position:relative;height:260px; }
-.filter-bar { display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap; }
-.filter-bar input, .filter-bar select { padding:8px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);font-family:'Outfit',sans-serif;font-size:13px;background:var(--bg);color:var(--text);outline:none; }
-.filter-bar input:focus,.filter-bar select:focus { border-color:var(--accent); }
-.pct-bar-wrap { width:100%;background:var(--bg3);border-radius:20px;height:8px;overflow:hidden; }
-.pct-bar { height:8px;border-radius:20px;transition:width 0.4s ease; }
+.tab-row { display:flex; gap:8px; margin-bottom:22px; flex-wrap:wrap; }
+.tab-btn { padding:8px 16px; border:1.5px solid var(--border); border-radius:var(--radius-sm); background:var(--bg2); color:var(--text2); font-family:'Outfit',sans-serif; font-size:13px; font-weight:600; cursor:pointer; transition:all 0.18s; }
+.tab-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); box-shadow:0 2px 8px rgba(37,99,235,0.25); }
+.tab-pane { display:none; }
+.tab-pane.active { display:block; }
+
+.chart-card { background:var(--bg2); border:1.5px solid var(--border); border-radius:var(--radius); padding:22px; box-shadow:var(--shadow-sm); margin-bottom:22px; }
+.chart-title { font-family:'Playfair Display',serif; font-size:16px; font-weight:700; margin-bottom:16px; display:flex; align-items:center; gap:8px; }
+.chart-wrap { position:relative; height:250px; }
+
+.filter-bar { display:flex; align-items:center; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+.filter-bar input, .filter-bar select { padding:8px 12px; border:1.5px solid var(--border); border-radius:var(--radius-sm); font-family:'Outfit',sans-serif; font-size:13px; background:var(--bg); color:var(--text); outline:none; }
+.filter-bar input:focus, .filter-bar select:focus { border-color:var(--accent); }
+
+.pct-bar-wrap { width:100%; background:var(--bg3); border-radius:20px; height:7px; overflow:hidden; }
+.pct-bar { height:7px; border-radius:20px; }
+
+/* Regularity badges */
+.reg-badge { display:inline-block; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
+.reg-sunday    { background:#fef9c3; color:#854d0e; border:1px solid #fde68a; }
+.reg-wednesday { background:var(--accent-light); color:var(--accent); border:1px solid #c7d7fe; }
+.reg-balsabha, .reg-balsabha { background:#fdf4ff; color:#7c3aed; border:1px solid #e9d5ff; }
+.reg-all       { background:var(--green-light); color:var(--green); border:1px solid #bbf7d0; }
+.reg-multi     { background:var(--orange-light); color:var(--orange); border:1px solid #fed7aa; }
+.reg-irregular { background:var(--bg3); color:var(--text3); border:1px solid var(--border); }
+
+.trend-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px; margin-bottom:22px; }
+@media(max-width:700px) { .trend-grid { grid-template-columns:1fr; } }
+
+/* Summary pills row */
+.summary-pills { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:18px; }
+.summary-pill { display:flex; align-items:center; gap:6px; padding:6px 12px; border-radius:20px; font-size:12.5px; font-weight:600; }
 </style>
 
-<!-- Attendance trend tabs -->
-<div style="display:flex;gap:10px;margin-bottom:20px;">
-    <button onclick="showTab('hostel')" id="tab-hostel" class="btn btn-primary btn-sm">🏠 Hostel Trend</button>
-    <button onclick="showTab('sabha')" id="tab-sabha" class="btn btn-secondary btn-sm">🙏 Sabha Trend</button>
-    <button onclick="showTab('students')" id="tab-students" class="btn btn-secondary btn-sm">◉ Per Student</button>
+<!-- Tab navigation -->
+<div class="tab-row">
+    <button class="tab-btn active" onclick="showTab('trends')">📈 Attendance Trends</button>
+    <button class="tab-btn" onclick="showTab('students')">◉ Per Student (Hostel)</button>
+    <button class="tab-btn" onclick="showTab('satsangis')">👥 Satsangi Regularity</button>
 </div>
 
-<!-- Hostel Trend Chart -->
-<div id="pane-hostel">
-    <div class="chart-card">
-        <div class="chart-title">🏠 Hostel Assembly — Attendance Trend</div>
-        {% if hostel_trend %}
-        <div class="chart-wrap"><canvas id="hostelChart"></canvas></div>
-        {% else %}
-        <div class="empty-state" style="padding:40px 0;"><div class="empty-icon">📊</div><div class="empty-title">No hostel events yet</div></div>
-        {% endif %}
+<!-- ── TAB 1: TRENDS ── -->
+<div class="tab-pane active" id="pane-trends">
+    <div class="trend-grid">
+        {% set type_meta = [
+            ('sunday',    '🙏', 'Sunday Sabha',    '#854d0e', '#fef9c3'),
+            ('wednesday', '📿', 'Wednesday Sabha', '#2563eb', '#eff4ff'),
+            ('balsabha',  '⭐', 'Bal Sabha',       '#7c3aed', '#fdf4ff'),
+            ('hostel',    '🏠', 'Hostel Assembly', '#ea580c', '#fff7ed'),
+        ] %}
+        {% for etype, icon, label, color, bg in type_meta %}
+        <div class="chart-card">
+            <div class="chart-title">
+                <span>{{ icon }}</span> {{ label }}
+                <span style="font-size:12px;color:var(--text3);font-weight:400;margin-left:auto;">{{ event_counts.get(etype,0) }} events</span>
+            </div>
+            {% if trends.get(etype) %}
+            <div class="chart-wrap"><canvas id="chart-{{ etype }}"></canvas></div>
+            {% else %}
+            <div style="text-align:center;padding:40px 0;color:var(--text3);">
+                <div style="font-size:28px;margin-bottom:8px;">{{ icon }}</div>
+                No events yet
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
     </div>
 </div>
 
-<!-- Sabha Trend Chart -->
-<div id="pane-sabha" style="display:none;">
+<!-- ── TAB 2: PER STUDENT ── -->
+<div class="tab-pane" id="pane-students">
     <div class="chart-card">
-        <div class="chart-title">🙏 Sabha — Attendance Trend</div>
-        {% if sabha_trend %}
-        <div class="chart-wrap"><canvas id="sabhaChart"></canvas></div>
-        {% else %}
-        <div class="empty-state" style="padding:40px 0;"><div class="empty-icon">📊</div><div class="empty-title">No sabha events yet</div></div>
-        {% endif %}
-    </div>
-</div>
-
-<!-- Per Student -->
-<div id="pane-students" style="display:none;">
-    <div class="chart-card">
-        <div class="chart-title">◉ Per Student — Hostel Assembly Attendance</div>
-
-        {% if total_hostel_events > 0 %}
+        <div class="chart-title">◉ Hostel Students — Assembly Attendance</div>
+        {% if event_counts.get('hostel',0) > 0 and student_stats %}
         <div class="filter-bar">
-            <input type="text" id="student-filter" placeholder="Search student..." oninput="filterStudents(this.value)">
-            <select id="sort-select" onchange="sortStudents(this.value)">
-                <option value="present">Sort: Most Present</option>
-                <option value="absent">Sort: Most Absent</option>
-                <option value="pct">Sort: % Attendance</option>
-                <option value="name">Sort: Name A-Z</option>
+            <input type="text" id="stu-filter" placeholder="Search student..." oninput="filterTable('stu-tbody', this.value)">
+            <select onchange="sortTable('stu-tbody', this.value)">
+                <option value="present">Most Present</option>
+                <option value="absent">Most Absent</option>
+                <option value="pct">Best %</option>
+                <option value="name">Name A-Z</option>
             </select>
         </div>
-
         <div class="table-wrap">
-            <table id="student-table">
-                <thead>
-                    <tr>
-                        <th>#</th>
-                        <th>Student</th>
-                        <th>Room</th>
-                        <th>Present</th>
-                        <th>Absent</th>
-                        <th>Attendance %</th>
-                    </tr>
-                </thead>
-                <tbody id="student-tbody">
+            <table>
+                <thead><tr><th>#</th><th>Student</th><th>Room</th><th>Present</th><th>Absent</th><th style="min-width:130px;">Attendance %</th></tr></thead>
+                <tbody id="stu-tbody">
+                {% set total_h = event_counts.get('hostel',1) %}
                 {% for s in student_stats %}
-                {% set pct = ((s.present_count / total_hostel_events) * 100) | round(0) | int if total_hostel_events else 0 %}
+                {% set pct = ((s.present_count / total_h * 100) | round(0) | int) if total_h else 0 %}
                 {% set color = 'var(--green)' if pct >= 75 else ('var(--orange)' if pct >= 50 else 'var(--red)') %}
                 <tr data-name="{{ s.name|lower }}" data-present="{{ s.present_count }}" data-absent="{{ s.absent_count }}" data-pct="{{ pct }}">
                     <td style="color:var(--text3);">{{ loop.index }}</td>
@@ -90,11 +108,9 @@
                     </td>
                     <td><span class="badge badge-green">{{ s.present_count }}</span></td>
                     <td><span class="badge badge-red">{{ s.absent_count }}</span></td>
-                    <td style="min-width:120px;">
-                        <div style="display:flex;align-items:center;gap:8px;">
-                            <div class="pct-bar-wrap" style="flex:1;">
-                                <div class="pct-bar" style="width:{{ pct }}%;background:{{ color }};"></div>
-                            </div>
+                    <td>
+                        <div style="display:flex;align-items:center;gap:7px;">
+                            <div class="pct-bar-wrap" style="flex:1;"><div class="pct-bar" style="width:{{ pct }}%;background:{{ color }};"></div></div>
                             <div style="font-weight:700;font-size:13px;color:{{ color }};width:36px;text-align:right;">{{ pct }}%</div>
                         </div>
                     </td>
@@ -104,7 +120,107 @@
             </table>
         </div>
         {% else %}
-        <div class="empty-state" style="padding:40px 0;"><div class="empty-icon">◉</div><div class="empty-title">No hostel events with attendance yet</div></div>
+        <div class="empty-state" style="padding:40px 0;"><div class="empty-icon">◉</div><div class="empty-title">No hostel event data yet</div></div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- ── TAB 3: SATSANGI REGULARITY ── -->
+<div class="tab-pane" id="pane-satsangis">
+    <div class="chart-card" style="margin-bottom:18px;">
+        <div class="chart-title">👥 Satsangi Regularity Summary</div>
+
+        {% if satsangi_stats %}
+        {% set total_s = satsangi_stats | length %}
+        {% set sun_reg = satsangi_stats | selectattr('regularity','in',['Sunday Regular','Sunday + Wednesday','Sunday + Bal Sabha','All Sabha']) | list | length %}
+        {% set wed_reg = satsangi_stats | selectattr('regularity','in',['Wednesday Regular','Sunday + Wednesday','Wednesday + Bal Sabha','All Sabha']) | list | length %}
+        {% set bal_reg = satsangi_stats | selectattr('regularity','in',['Bal Sabha Regular','Sunday + Bal Sabha','Wednesday + Bal Sabha','All Sabha']) | list | length %}
+        {% set all_reg = satsangi_stats | selectattr('reg_class','equalto','all') | list | length %}
+        {% set irreg   = satsangi_stats | selectattr('reg_class','equalto','irregular') | list | length %}
+
+        <div class="summary-pills">
+            <div class="summary-pill" style="background:#fef9c3;color:#854d0e;">🙏 Sunday Regular: <strong>{{ sun_reg }}</strong></div>
+            <div class="summary-pill" style="background:var(--accent-light);color:var(--accent);">📿 Wednesday Regular: <strong>{{ wed_reg }}</strong></div>
+            <div class="summary-pill" style="background:#fdf4ff;color:#7c3aed;">⭐ Bal Sabha Regular: <strong>{{ bal_reg }}</strong></div>
+            <div class="summary-pill" style="background:var(--green-light);color:var(--green);">✓ All Sabha: <strong>{{ all_reg }}</strong></div>
+            <div class="summary-pill" style="background:var(--bg3);color:var(--text3);">? Irregular: <strong>{{ irreg }}</strong></div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="chart-card">
+        <div class="chart-title">👥 Per Satsangi — Sabha Attendance</div>
+        {% if satsangi_stats %}
+        <div class="filter-bar">
+            <input type="text" id="sat-filter" placeholder="Search satsangi..." oninput="filterTable('sat-tbody', this.value)">
+            <select onchange="sortSatsangis(this.value)">
+                <option value="total">Most Present (Total)</option>
+                <option value="sun">Most Sunday</option>
+                <option value="wed">Most Wednesday</option>
+                <option value="bal">Most Bal Sabha</option>
+                <option value="reg">By Regularity</option>
+                <option value="name">Name A-Z</option>
+            </select>
+        </div>
+        <div class="table-wrap">
+            <table>
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Satsangi</th>
+                        <th>Regularity</th>
+                        <th>🙏 Sun</th>
+                        <th>📿 Wed</th>
+                        <th>⭐ Bal</th>
+                        <th>Total</th>
+                    </tr>
+                </thead>
+                <tbody id="sat-tbody">
+                {% for s in satsangi_stats %}
+                <tr data-name="{{ s.name|lower }}"
+                    data-total="{{ s.total_present }}"
+                    data-sun="{{ s.sun_present }}"
+                    data-wed="{{ s.wed_present }}"
+                    data-bal="{{ s.bal_present }}"
+                    data-reg="{{ s.regularity|lower }}">
+                    <td style="color:var(--text3);">{{ loop.index }}</td>
+                    <td>
+                        <div style="font-weight:600;">{{ s.name }}</div>
+                        {% if s.mobile %}<div style="font-size:11px;color:var(--text3);">{{ s.mobile }}</div>{% endif %}
+                    </td>
+                    <td><span class="reg-badge reg-{{ s.reg_class }}">{{ s.regularity }}</span></td>
+                    <td>
+                        {% if s.sun_total > 0 %}
+                        <span style="font-weight:600;">{{ s.sun_present }}</span><span style="color:var(--text3);font-size:11px;">/{{ s.sun_total }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if s.wed_total > 0 %}
+                        <span style="font-weight:600;">{{ s.wed_present }}</span><span style="color:var(--text3);font-size:11px;">/{{ s.wed_total }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if s.bal_total > 0 %}
+                        <span style="font-weight:600;">{{ s.bal_present }}</span><span style="color:var(--text3);font-size:11px;">/{{ s.bal_total }}</span>
+                        {% else %}—{% endif %}
+                    </td>
+                    <td>
+                        {% if s.total_events > 0 %}
+                        <div style="display:flex;align-items:center;gap:5px;">
+                            {% set tpct = ((s.total_present / s.total_events * 100)|round(0)|int) %}
+                            {% set tc = 'var(--green)' if tpct >= 75 else ('var(--orange)' if tpct >= 50 else 'var(--red)') %}
+                            <div class="pct-bar-wrap" style="width:50px;"><div class="pct-bar" style="width:{{ tpct }}%;background:{{ tc }};"></div></div>
+                            <span style="font-weight:700;font-size:12px;color:{{ tc }};">{{ s.total_present }}/{{ s.total_events }}</span>
+                        </div>
+                        {% else %}—{% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="empty-state" style="padding:40px 0;"><div class="empty-icon">👥</div><div class="empty-title">No satsangi data yet</div></div>
         {% endif %}
     </div>
 </div>
@@ -112,102 +228,95 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
 <script>
 // ── Tab switching ──
-function showTab(tab) {
-    ['hostel','sabha','students'].forEach(t => {
-        document.getElementById('pane-' + t).style.display = t === tab ? '' : 'none';
-        const btn = document.getElementById('tab-' + t);
-        btn.className = t === tab ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm';
-    });
+function showTab(id) {
+    document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById('pane-' + id).classList.add('active');
+    event.target.classList.add('active');
 }
 
-// ── Chart colors ──
-const green = '#16a34a', greenLight = 'rgba(22,163,74,0.12)';
-const blue = '#2563eb',  blueLight  = 'rgba(37,99,235,0.12)';
-const purple = '#7c3aed', purpleLight = 'rgba(124,58,237,0.12)';
+// ── Charts ──
+const chartColors = {
+    sunday:    {line:'#854d0e', fill:'rgba(133,77,14,0.1)'},
+    wednesday: {line:'#2563eb', fill:'rgba(37,99,235,0.1)'},
+    balsabha:  {line:'#7c3aed', fill:'rgba(124,58,237,0.1)'},
+    hostel:    {line:'#ea580c', fill:'rgba(234,88,12,0.1)'},
+};
 
-// ── Hostel chart ──
-{% if hostel_trend %}
-const hostelData = {{ hostel_trend | tojson }};
-new Chart(document.getElementById('hostelChart'), {
-    type: 'line',
-    data: {
-        labels: hostelData.map(d => d.event_date),
-        datasets: [{
-            label: 'Present',
-            data: hostelData.map(d => d.present_count),
-            borderColor: green, backgroundColor: greenLight,
-            fill: true, tension: 0.35, pointRadius: 5, pointHoverRadius: 7
-        }, {
-            label: 'Absent',
-            data: hostelData.map(d => d.absent_count),
-            borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)',
-            fill: true, tension: 0.35, pointRadius: 5, pointHoverRadius: 7
-        }]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'top' } },
-        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-    }
-});
-{% endif %}
-
-// ── Sabha chart ──
-{% if sabha_trend %}
-const sabhaData = {{ sabha_trend | tojson }};
-new Chart(document.getElementById('sabhaChart'), {
-    type: 'line',
-    data: {
-        labels: sabhaData.map(d => d.event_date),
-        datasets: [{
-            label: 'Present',
-            data: sabhaData.map(d => d.present_count),
-            borderColor: purple, backgroundColor: purpleLight,
-            fill: true, tension: 0.35, pointRadius: 5, pointHoverRadius: 7
-        }, {
-            label: 'Absent',
-            data: sabhaData.map(d => d.absent_count),
-            borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.08)',
-            fill: true, tension: 0.35, pointRadius: 5, pointHoverRadius: 7
-        }]
-    },
-    options: {
-        responsive: true, maintainAspectRatio: false,
-        plugins: { legend: { position: 'top' } },
-        scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
-    }
-});
-{% endif %}
-
-// ── Student filter + sort ──
-function filterStudents(q) {
-    const lower = q.toLowerCase();
-    document.querySelectorAll('#student-tbody tr').forEach(tr => {
-        tr.style.display = tr.dataset.name.includes(lower) ? '' : 'none';
-    });
-    reIndex();
-}
-
-function sortStudents(by) {
-    const tbody = document.getElementById('student-tbody');
-    const rows = Array.from(tbody.querySelectorAll('tr'));
-    rows.sort((a, b) => {
-        if (by === 'name') return a.dataset.name.localeCompare(b.dataset.name);
-        if (by === 'present') return parseInt(b.dataset.present) - parseInt(a.dataset.present);
-        if (by === 'absent') return parseInt(b.dataset.absent) - parseInt(a.dataset.absent);
-        if (by === 'pct') return parseInt(b.dataset.pct) - parseInt(a.dataset.pct);
-    });
-    rows.forEach(r => tbody.appendChild(r));
-    reIndex();
-}
-
-function reIndex() {
-    let i = 1;
-    document.querySelectorAll('#student-tbody tr').forEach(tr => {
-        if (tr.style.display !== 'none') {
-            tr.cells[0].textContent = i++;
+{% for etype, icon, label, color, bg in [
+    ('sunday','🙏','Sunday Sabha','#854d0e','#fef9c3'),
+    ('wednesday','📿','Wednesday Sabha','#2563eb','#eff4ff'),
+    ('balsabha','⭐','Bal Sabha','#7c3aed','#fdf4ff'),
+    ('hostel','🏠','Hostel Assembly','#ea580c','#fff7ed'),
+] %}
+{% if trends.get(etype) %}
+(function() {
+    const data = {{ trends[etype] | tojson }};
+    new Chart(document.getElementById('chart-{{ etype }}'), {
+        type: 'line',
+        data: {
+            labels: data.map(d => d.event_date),
+            datasets: [{
+                label: 'Present',
+                data: data.map(d => d.present_count),
+                borderColor: '{{ color }}', backgroundColor: '{{ bg }}',
+                fill: true, tension: 0.35, pointRadius: 4, pointHoverRadius: 6
+            },{
+                label: 'Absent',
+                data: data.map(d => d.absent_count),
+                borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.07)',
+                fill: true, tension: 0.35, pointRadius: 4, pointHoverRadius: 6
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } } },
+            scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
     });
+})();
+{% endif %}
+{% endfor %}
+
+// ── Generic table filter ──
+function filterTable(tbodyId, q) {
+    const lower = q.toLowerCase();
+    let i = 1;
+    document.querySelectorAll(`#${tbodyId} tr`).forEach(tr => {
+        const show = tr.dataset.name.includes(lower);
+        tr.style.display = show ? '' : 'none';
+        if (show) tr.cells[0].textContent = i++;
+    });
+}
+
+// ── Student sort ──
+function sortTable(tbodyId, by) {
+    const tbody = document.getElementById(tbodyId);
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a,b) => {
+        if (by === 'name')    return a.dataset.name.localeCompare(b.dataset.name);
+        if (by === 'present') return +b.dataset.present - +a.dataset.present;
+        if (by === 'absent')  return +b.dataset.absent  - +a.dataset.absent;
+        if (by === 'pct')     return +b.dataset.pct - +a.dataset.pct;
+        return 0;
+    });
+    rows.forEach((r,i) => { tbody.appendChild(r); r.cells[0].textContent = i+1; });
+}
+
+// ── Satsangi sort ──
+function sortSatsangis(by) {
+    const tbody = document.getElementById('sat-tbody');
+    const rows = Array.from(tbody.querySelectorAll('tr'));
+    rows.sort((a,b) => {
+        if (by === 'name')  return a.dataset.name.localeCompare(b.dataset.name);
+        if (by === 'total') return +b.dataset.total - +a.dataset.total;
+        if (by === 'sun')   return +b.dataset.sun   - +a.dataset.sun;
+        if (by === 'wed')   return +b.dataset.wed   - +a.dataset.wed;
+        if (by === 'bal')   return +b.dataset.bal   - +a.dataset.bal;
+        if (by === 'reg')   return a.dataset.reg.localeCompare(b.dataset.reg);
+        return 0;
+    });
+    rows.forEach((r,i) => { tbody.appendChild(r); r.cells[0].textContent = i+1; });
 }
 </script>
 {% endblock %}
