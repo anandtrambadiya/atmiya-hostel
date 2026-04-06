@@ -15,6 +15,16 @@ def is_attendance_open(event_date_str):
 def hash_password(pw):
     return hashlib.sha256(pw.encode()).hexdigest()
 
+# Types that use satsangi table
+SABHA_TYPES = {'sunday', 'wednesday', 'balsabha'}
+
+def is_sabha_type(event_type):
+    return event_type in SABHA_TYPES
+
+def event_type_label(event_type):
+    return {'sunday': 'Sunday Sabha', 'wednesday': 'Wednesday Sabha',
+            'balsabha': 'Bal Sabha', 'hostel': 'Hostel Assembly'}.get(event_type, event_type.title())
+
 def categorize_events(events_raw):
     today = date.today()
     active, upcoming, past = [], [], []
@@ -129,7 +139,7 @@ def init_db():
 def auto_mark_absent(event_id, event_type):
     conn = get_db(); c = conn.cursor()
     try:
-        if event_type == 'sabha':
+        if is_sabha_type(event_type):
             c.execute("SELECT id FROM satsangis")
             person_type = 'satsangi'
         else:
@@ -163,7 +173,7 @@ VOLUNTEER_ALLOWED = {
     'volunteer_dashboard', 'volunteer_attendance', 'volunteer_sabha_attendance',
     'volunteer_report', 'volunteer_login', 'volunteer_logout',
     'api_rooms', 'api_students', 'api_mark_attendance', 'api_unmark_attendance',
-    'api_search_satsangis', 'api_mark_sabha', 'api_unmark_sabha',
+    'api_search_satsangis', 'api_mark_sabha', 'api_unmark_sabha', 'api_quick_add_satsangi',
     'static'
 }
 PUBLIC_ROUTES = {'admin_login', 'admin_logout', 'volunteer_login', 'volunteer_logout', 'static'}
@@ -211,10 +221,9 @@ def dashboard():
                        ('satsangis','satsangis'),('events','events')]:
         c.execute(f'SELECT COUNT(*) FROM {table}')
         stats[key] = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM events WHERE event_type='sabha'")
-    stats['sabha_events'] = c.fetchone()[0]
-    c.execute("SELECT COUNT(*) FROM events WHERE event_type='hostel'")
-    stats['hostel_events'] = c.fetchone()[0]
+    for etype in ['sunday', 'wednesday', 'balsabha', 'hostel']:
+        c.execute("SELECT COUNT(*) FROM events WHERE event_type=%s", (etype,))
+        stats[etype + '_events'] = c.fetchone()[0]
     c.execute('SELECT * FROM events ORDER BY created_at DESC LIMIT 6')
     recent_events = fetchall_dict(c)
     conn.close()
@@ -262,14 +271,18 @@ def volunteer_dashboard():
         GROUP BY e.id ORDER BY e.event_date DESC""")
     all_events = fetchall_dict(c); conn.close()
     today = date.today()
-    active = []
+    # Group active events by type
+    buckets = {'sunday': [], 'wednesday': [], 'balsabha': [], 'hostel': []}
     for e in all_events:
         try:
             edate = datetime.strptime(str(e['event_date']), '%Y-%m-%d').date()
             if edate <= today <= edate + timedelta(days=2):
-                e['window_open'] = True; active.append(e)
+                e['window_open'] = True
+                etype = e.get('event_type', 'hostel')
+                if etype in buckets:
+                    buckets[etype].append(e)
         except: pass
-    return render_template('volunteer_dashboard.html', active=active)
+    return render_template('volunteer_dashboard.html', buckets=buckets)
 
 @app.route('/volunteer/attendance/<int:id>')
 def volunteer_attendance(id):
@@ -280,7 +293,7 @@ def volunteer_attendance(id):
     event = fetchone_dict(c)
     if not event: conn.close(); return redirect(url_for('volunteer_dashboard'))
     # Route to correct attendance flow based on event type
-    if event.get('event_type') == 'sabha':
+    if is_sabha_type(event.get('event_type','')):
         c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present'", (id,))
         marked_ids = [r[0] for r in c.fetchall()]
         c.execute("SELECT id, name, COALESCE(mobile,'') as mobile, COALESCE(address,'') as address FROM satsangis ORDER BY name")
@@ -320,7 +333,7 @@ def _report(eid, volunteer_mode):
         return redirect(url_for('volunteer_dashboard') if volunteer_mode else url_for('events'))
     maybe_auto_mark_absent(eid, event['event_date'], event.get('event_type', 'hostel'))
     conn = get_db(); c = conn.cursor()
-    if event.get('event_type') == 'sabha':
+    if is_sabha_type(event.get('event_type','')):
         c.execute("""SELECT s.id, s.name,
             COALESCE(s.mobile, '') as mobile,
             a.status
@@ -346,7 +359,7 @@ def _report(eid, volunteer_mode):
     # Count present from records (accurate even before window closes)
     present_count = sum(1 for r in records if r.get('status') == 'present')
     absent_count  = total - present_count
-    template = 'sabha_report.html' if event.get('event_type') == 'sabha' else 'attendance_report.html'
+    template = 'sabha_report.html' if is_sabha_type(event.get('event_type','')) else 'attendance_report.html'
     return render_template(template, event=event, records=records, total=total,
                            present_count=present_count, absent_count=absent_count,
                            volunteer_mode=volunteer_mode)
@@ -412,9 +425,9 @@ def assembly():
 
 @app.route('/events/add', methods=['GET','POST'])
 def add_event():
-    event_type = request.args.get('type', 'hostel')
+    event_type = request.args.get('type', 'sunday')
     if request.method == 'POST':
-        event_type = request.form.get('event_type', 'hostel')
+        event_type = request.form.get('event_type', 'sunday')
         conn = get_db(); c = conn.cursor()
         c.execute('INSERT INTO events (title, event_date, event_type, description) VALUES (%s,%s,%s,%s)',
                   (request.form['title'], request.form['event_date'],
@@ -452,7 +465,7 @@ def take_attendance(id):
     conn = get_db(); c = conn.cursor()
     c.execute('SELECT * FROM events WHERE id=%s', (id,))
     event = fetchone_dict(c)
-    if event.get('event_type') == 'sabha':
+    if is_sabha_type(event.get('event_type','')):
         c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present'", (id,))
         marked_ids = [r[0] for r in c.fetchall()]
         c.execute("SELECT id, name, COALESCE(mobile,'') as mobile, COALESCE(address,'') as address FROM satsangis ORDER BY name")
@@ -798,6 +811,25 @@ def analytics():
                            sabha_trend=sabha_trend,
                            student_stats=student_stats,
                            total_hostel_events=total_hostel_events)
+
+# ── QUICK ADD SATSANGI (from attendance page) ──────────────
+@app.route('/api/satsangis/quick-add', methods=['POST'])
+def api_quick_add_satsangi():
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    mobile = (data.get('mobile') or '').strip()
+    if not name:
+        return jsonify({'success': False, 'error': 'Name is required'})
+    conn = get_db(); c = conn.cursor()
+    try:
+        c.execute('INSERT INTO satsangis (name, mobile) VALUES (%s,%s) RETURNING id',
+                  (name, mobile or None))
+        new_id = c.fetchone()[0]
+        conn.commit(); conn.close()
+        return jsonify({'success': True, 'id': new_id, 'name': name, 'mobile': mobile})
+    except Exception as e:
+        conn.close()
+        return jsonify({'success': False, 'error': str(e)})
 
 # ── IMPORT ────────────────────────────────────────────────
 @app.route('/import', methods=['GET','POST'])

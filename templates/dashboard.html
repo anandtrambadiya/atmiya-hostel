@@ -1,141 +1,113 @@
 {% extends 'base.html' %}
 {% block title %}Dashboard{% endblock %}
 {% block page_title_admin %}Dashboard{% endblock %}
-{% block topbar_actions %}
-<a href="{{ url_for('add_event', type='sabha') }}" class="btn btn-secondary btn-sm">+ Sabha</a>
-<a href="{{ url_for('add_event', type='hostel') }}" class="btn btn-primary btn-sm">+ Hostel Event</a>
-{% endblock %}
 
 {% block content %}
+<style>
+.type-launcher{text-decoration:none;display:block;padding:18px;background:var(--bg2);border:2px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);transition:all 0.2s;}
+.type-launcher:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow);}
+</style>
 
-<!-- TOP ROW: Create launchers + Volunteer -->
-<div class="dash-grid" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:20px;">
-
-    <!-- Sabha launcher -->
-    <a href="{{ url_for('add_event', type='sabha') }}" class="card dash-launcher" style="text-decoration:none;display:block;border:2px solid var(--border);transition:all 0.2s;">
-        <div style="font-size:28px;margin-bottom:10px;">🙏</div>
-        <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;margin-bottom:4px;">New Sabha Event</div>
-        <div style="font-size:12px;color:var(--text2);">Sun & Wed sabha</div>
+<!-- TOP: 4 event launchers + QR + Password -->
+<div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:14px;margin-bottom:20px;" class="dash-grid">
+    {% for val, icon, label, sub in [
+        ('sunday',    '🙏', 'Sunday Sabha',    'Sun sabha'),
+        ('wednesday', '📿', 'Wednesday Sabha', 'Wed sabha'),
+        ('balsabha',  '⭐', 'Bal Sabha',       'Bal sabha'),
+        ('hostel',    '🏠', 'Hostel Assembly', 'Fri assembly'),
+    ] %}
+    <a href="{{ url_for('add_event', type=val) }}" class="type-launcher">
+        <div style="font-size:26px;margin-bottom:8px;">{{ icon }}</div>
+        <div style="font-family:'Playfair Display',serif;font-size:13px;font-weight:700;margin-bottom:3px;">{{ label }}</div>
+        <div style="font-size:11px;color:var(--text2);">+ Create event</div>
     </a>
-
-    <!-- Hostel launcher -->
-    <a href="{{ url_for('add_event', type='hostel') }}" class="card dash-launcher" style="text-decoration:none;display:block;border:2px solid var(--border);transition:all 0.2s;">
-        <div style="font-size:28px;margin-bottom:10px;">🏠</div>
-        <div style="font-family:'Playfair Display',serif;font-size:15px;font-weight:700;margin-bottom:4px;">New Hostel Event</div>
-        <div style="font-size:12px;color:var(--text2);">Friday assembly</div>
-    </a>
-
-    <!-- Volunteer QR -->
-    <div class="card" style="padding:18px;">
-        <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text2);margin-bottom:10px;">Volunteer Login</div>
-        <div id="qr-container" style="display:inline-block;padding:8px;background:#fff;border:1.5px solid var(--border);border-radius:8px;margin-bottom:8px;"></div>
-        <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <a href="{{ url_for('volunteer_login') }}" target="_blank" class="btn btn-secondary btn-sm">Open →</a>
-            <button onclick="printQR()" class="btn btn-secondary btn-sm">🖨</button>
-        </div>
-    </div>
+    {% endfor %}
 </div>
 
-<!-- SECOND ROW: Recent events + Password -->
+<!-- Recent events + Volunteer -->
 <div class="dash-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:20px;">
     <div class="card">
         <div class="card-header">
             <div class="card-title">Recent Events</div>
             <a href="{{ url_for('events') }}" class="btn btn-secondary btn-sm">View All</a>
         </div>
+        {% set type_icons = {'sunday':'🙏','wednesday':'📿','balsabha':'⭐','hostel':'🏠'} %}
         {% if recent_events %}
         <div style="display:flex;flex-direction:column;gap:8px;">
             {% for e in recent_events %}
+            {% set window_open = e.event_date | string >= today_str and (e.event_date | string) <= (today_str) %}
             <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--bg3);border-radius:9px;border:1.5px solid var(--border);gap:10px;">
                 <div style="min-width:0;">
-                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px;">
-                        <span>{{ '🙏' if e.event_type == 'sabha' else '🏠' }}</span>
+                    <div style="display:flex;align-items:center;gap:5px;margin-bottom:2px;">
+                        <span>{{ type_icons.get(e.event_type, '◆') }}</span>
                         <div style="font-weight:600;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">{{ e.title }}</div>
                     </div>
                     <div style="font-size:11px;color:var(--accent);">{{ e.event_date }}</div>
                 </div>
+                {% if e.is_active %}
                 <a href="{{ url_for('take_attendance', id=e.id) }}" class="btn btn-sm btn-primary" style="flex-shrink:0;">Attend</a>
+                {% else %}
+                <a href="{{ url_for('event_report', eid=e.id) }}" class="btn btn-sm btn-secondary" style="flex-shrink:0;">View</a>
+                {% endif %}
             </div>
             {% endfor %}
         </div>
         {% else %}
         <div class="empty-state" style="padding:24px 0;">
-            <div class="empty-icon" style="font-size:32px;">◆</div>
+            <div class="empty-icon" style="font-size:28px;">◆</div>
             <div class="empty-title" style="font-size:14px;">No Events Yet</div>
         </div>
         {% endif %}
     </div>
 
     <div class="card">
-        <div class="card-header">
-            <div class="card-title">🔑 Volunteer Password</div>
+        <div class="card-header"><div class="card-title">🔑 Volunteer</div></div>
+        <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text2);margin-bottom:8px;">QR Code</div>
+        <div id="qr-container" style="display:inline-block;padding:10px;background:#fff;border:1.5px solid var(--border);border-radius:8px;margin-bottom:10px;"></div>
+        <div style="display:flex;gap:6px;margin-bottom:18px;">
+            <a href="{{ url_for('volunteer_login') }}" target="_blank" class="btn btn-secondary btn-sm">Open →</a>
+            <button onclick="printQR()" class="btn btn-secondary btn-sm">🖨</button>
         </div>
-        <p style="font-size:13px;color:var(--text2);margin-bottom:14px;line-height:1.6;">
-            Default: <code style="background:var(--bg3);padding:2px 6px;border-radius:4px;font-size:12px;">volunteer123</code>
-        </p>
-        <form method="POST" action="{{ url_for('update_volunteer_password') }}">
-            <div class="form-group">
-                <label>New Password</label>
-                <input type="password" name="new_password" placeholder="Minimum 4 characters" minlength="4" required>
-            </div>
-            <button type="submit" class="btn btn-primary">Update Password</button>
-        </form>
+        <div style="border-top:1.5px solid var(--border);padding-top:14px;">
+            <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text2);margin-bottom:8px;">Change Password</div>
+            <form method="POST" action="{{ url_for('update_volunteer_password') }}" style="display:flex;gap:8px;">
+                <input type="password" name="new_password" placeholder="New password (min 4)" minlength="4" required style="flex:1;padding:8px 10px;font-size:13px;">
+                <button type="submit" class="btn btn-primary btn-sm">Update</button>
+            </form>
+        </div>
     </div>
 </div>
 
-<!-- BOTTOM: Stats -->
-<div class="stats-grid" style="grid-template-columns:repeat(6,1fr);">
+<!-- Stats row -->
+<div class="stats-grid" style="grid-template-columns:repeat(7,1fr);">
+    {% for icon, num, label in [
+        ('🙏', stats.sunday_events, 'Sunday'),
+        ('📿', stats.wednesday_events, 'Wednesday'),
+        ('⭐', stats.balsabha_events, 'Bal Sabha'),
+        ('🏠', stats.hostel_events, 'Hostel'),
+        ('🏢', stats.buildings, 'Buildings'),
+        ('🚪', stats.rooms, 'Rooms'),
+        ('◉', stats.students, 'Students'),
+    ] %}
     <div class="stat-card blue">
-        <div class="stat-icon">🙏</div>
-        <div class="stat-num">{{ stats.sabha_events }}</div>
-        <div class="stat-label">Sabha Events</div>
+        <div class="stat-icon">{{ icon }}</div>
+        <div class="stat-num">{{ num }}</div>
+        <div class="stat-label">{{ label }}</div>
     </div>
-    <div class="stat-card purple">
-        <div class="stat-icon">🏠</div>
-        <div class="stat-num">{{ stats.hostel_events }}</div>
-        <div class="stat-label">Hostel Events</div>
-    </div>
-    <div class="stat-card green">
-        <div class="stat-icon">👥</div>
-        <div class="stat-num">{{ stats.satsangis }}</div>
-        <div class="stat-label">Satsangis</div>
-    </div>
-    <div class="stat-card orange">
-        <div class="stat-icon">🏢</div>
-        <div class="stat-num">{{ stats.buildings }}</div>
-        <div class="stat-label">Buildings</div>
-    </div>
-    <div class="stat-card blue">
-        <div class="stat-icon">🚪</div>
-        <div class="stat-num">{{ stats.rooms }}</div>
-        <div class="stat-label">Rooms</div>
-    </div>
-    <div class="stat-card green">
-        <div class="stat-icon">◉</div>
-        <div class="stat-num">{{ stats.students }}</div>
-        <div class="stat-label">Students</div>
-    </div>
+    {% endfor %}
 </div>
-
-<style>
-.dash-launcher:hover { border-color: var(--accent) !important; transform: translateY(-2px); box-shadow: var(--shadow); }
-@media (max-width:768px) {
-    .dash-grid[style*="grid-template-columns:1fr 1fr 1fr"] { grid-template-columns:1fr !important; }
-}
-</style>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script>
 const volUrl = window.location.origin + '{{ url_for("volunteer_login") }}';
 new QRCode(document.getElementById('qr-container'), {
     text: volUrl, width: 110, height: 110,
-    colorDark: '#1a1814', colorLight: '#ffffff',
-    correctLevel: QRCode.CorrectLevel.M
+    colorDark: '#1a1814', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M
 });
 function printQR() {
-    const qrImg = document.querySelector('#qr-container img');
+    const img = document.querySelector('#qr-container img');
     const w = window.open('', '', 'width=400,height=500');
-    w.document.write('<html><head><title>Volunteer QR</title><style>body{font-family:sans-serif;text-align:center;padding:40px;}img{width:200px;height:200px;}</style></head><body><h2>Volunteer Login</h2><img src="' + qrImg.src + '"><br><p style="font-size:12px;word-break:break-all;">' + volUrl + '</p><script>window.onload=()=>window.print()<\/script></body></html>');
+    w.document.write('<html><head><title>Volunteer QR</title><style>body{font-family:sans-serif;text-align:center;padding:40px;}img{width:200px;height:200px;}</style></head><body><h2>Volunteer Login</h2><img src="' + img.src + '"><br><p style="font-size:12px;word-break:break-all;">' + volUrl + '</p><script>window.onload=()=>window.print()<\/script></body></html>');
     w.document.close();
 }
 </script>

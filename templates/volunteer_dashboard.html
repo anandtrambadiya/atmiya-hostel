@@ -5,270 +5,66 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Volunteer — Youth Assembly</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Outfit:wght@300;400;500;600;700&family=DM+Serif+Display&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --bg: #f7f5f0;
-            --bg2: #ffffff;
-            --bg3: #f2f0eb;
-            --border: #e2dfd7;
-            --border2: #d0ccc2;
-            --accent: #2563eb;
-            --accent-light: #eff4ff;
-            --text: #1a1814;
-            --text2: #5a5650;
-            --text3: #9c9890;
-            --green: #16a34a;
-            --green-light: #f0fdf4;
-            --red: #dc2626;
-            --red-light: #fef2f2;
-            --shadow-sm: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
-            --shadow: 0 4px 16px rgba(0,0,0,0.08);
-            --shadow-lg: 0 12px 40px rgba(0,0,0,0.1);
-            --radius: 16px;
-            --radius-sm: 9px;
+            --bg:#f7f5f0;--bg2:#ffffff;--bg3:#f2f0eb;--border:#e2dfd7;--border2:#d0ccc2;
+            --accent:#2563eb;--accent-light:#eff4ff;--text:#1a1814;--text2:#5a5650;--text3:#9c9890;
+            --green:#16a34a;--green-light:#f0fdf4;--red:#dc2626;--red-light:#fef2f2;
+            --orange:#ea580c;--orange-light:#fff7ed;--purple:#7c3aed;--purple-light:#f5f3ff;
+            --shadow-sm:0 1px 3px rgba(0,0,0,0.06);--shadow:0 4px 16px rgba(0,0,0,0.08);
+            --radius:14px;--radius-sm:8px;
         }
-        * { margin:0; padding:0; box-sizing:border-box; }
-        body {
-            font-family: 'Outfit', sans-serif;
-            background: var(--bg);
-            color: var(--text);
-            min-height: 100vh;
-            -webkit-font-smoothing: antialiased;
-        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
 
-        /* ── TOPBAR ── */
-        .topbar {
-            background: var(--bg2);
-            border-bottom: 1.5px solid var(--border);
-            padding: 0 28px;
-            height: 60px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            box-shadow: var(--shadow-sm);
-        }
-        .topbar-left { display:flex; align-items:center; gap:12px; }
-        .logo-mark {
-            width: 34px; height: 34px;
-            background: var(--accent);
-            border-radius: 9px;
-            display: flex; align-items:center; justify-content:center;
-            font-size: 16px;
-        }
-        .logo-text {
-            font-family: 'Playfair Display', serif;
-            font-size: 15px; font-weight: 700;
-        }
-        .vol-pill {
-            background: var(--green-light);
-            color: var(--green);
-            border: 1px solid #bbf7d0;
-            font-size: 10.5px; font-weight: 700;
-            padding: 3px 9px; border-radius: 20px;
-            letter-spacing: 0.05em; text-transform: uppercase;
-        }
-        .logout-btn {
-            display: inline-flex; align-items:center; gap:6px;
-            padding: 7px 14px;
-            background: var(--bg3);
-            border: 1.5px solid var(--border);
-            border-radius: var(--radius-sm);
-            color: var(--text2);
-            font-family: 'Outfit', sans-serif;
-            font-size: 13px; font-weight: 600;
-            text-decoration: none;
-            transition: all 0.18s;
-        }
-        .logout-btn:hover { background: var(--red-light); border-color:#fecaca; color:var(--red); }
+        .topbar{background:var(--bg2);border-bottom:1.5px solid var(--border);padding:0 20px;height:56px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm);}
+        .topbar-left{display:flex;align-items:center;gap:10px;}
+        .logo-mark{width:32px;height:32px;background:var(--accent);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;}
+        .logo-text{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;}
+        .vol-pill{background:var(--green-light);color:var(--green);border:1px solid #bbf7d0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;}
+        .logout-btn{display:inline-flex;align-items:center;gap:5px;padding:7px 13px;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text2);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;text-decoration:none;transition:all 0.18s;}
+        .logout-btn:hover{background:var(--red-light);border-color:#fecaca;color:var(--red);}
 
-        /* ── MAIN ── */
-        .page { max-width: 680px; margin: 0 auto; padding: 36px 24px 60px; }
+        .page{max-width:860px;margin:0 auto;padding:24px 16px 60px;}
 
-        /* ── DATE BANNER ── */
-        .date-banner {
-            background: var(--bg2);
-            border: 1.5px solid var(--border);
-            border-radius: var(--radius);
-            padding: 18px 22px;
-            margin-bottom: 28px;
-            display: flex;
-            align-items: center;
-            gap: 14px;
-            box-shadow: var(--shadow-sm);
-        }
-        .date-icon {
-            width: 44px; height: 44px;
-            background: var(--accent-light);
-            border-radius: 11px;
-            display: flex; align-items:center; justify-content:center;
-            font-size: 20px; flex-shrink:0;
-        }
-        .date-label { font-size: 11px; color:var(--text3); text-transform:uppercase; letter-spacing:0.07em; font-weight:600; }
-        .date-value { font-family:'Playfair Display',serif; font-size:18px; font-weight:700; margin-top:2px; }
+        /* 4-bucket grid */
+        .buckets-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:0;}
+        @media(max-width:600px){.buckets-grid{grid-template-columns:1fr;}}
 
-        /* ── SECTION HEADER ── */
-        .section-hd {
-            display: flex; align-items:center; gap:10px;
-            margin-bottom: 16px;
-        }
-        .section-dot {
-            width: 10px; height:10px; border-radius:50%;
-            background: var(--green);
-            box-shadow: 0 0 0 3px rgba(22,163,74,0.2);
-            animation: pulse 2s infinite;
-            flex-shrink:0;
-        }
-        @keyframes pulse {
-            0%,100% { box-shadow: 0 0 0 3px rgba(22,163,74,0.2); }
-            50%      { box-shadow: 0 0 0 6px rgba(22,163,74,0.08); }
-        }
-        .section-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 17px; font-weight: 700;
-        }
-        .section-count {
-            margin-left: auto;
-            background: var(--green-light);
-            color: var(--green);
-            border: 1px solid #bbf7d0;
-            font-size: 12px; font-weight: 700;
-            padding: 3px 10px; border-radius: 20px;
-        }
+        .bucket{background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm);}
+        .bucket-header{padding:14px 16px;border-bottom:1.5px solid var(--border);display:flex;align-items:center;gap:10px;}
+        .bucket-icon{width:36px;height:36px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0;}
+        .bucket-title{font-family:'Playfair Display',serif;font-size:14px;font-weight:700;}
+        .bucket-subtitle{font-size:11px;color:var(--text3);margin-top:1px;}
+        .bucket-body{padding:12px;}
 
-        /* ── EVENT CARD ── */
-        .event-card {
-            background: var(--bg2);
-            border: 1.5px solid var(--border);
-            border-radius: var(--radius);
-            margin-bottom: 14px;
-            box-shadow: var(--shadow-sm);
-            overflow: hidden;
-            transition: all 0.2s;
-        }
-        .event-card:hover {
-            border-color: var(--accent);
-            box-shadow: var(--shadow);
-            transform: translateY(-1px);
-        }
-        .event-card-top {
-            padding: 20px 22px 16px;
-            border-bottom: 1.5px solid var(--border);
-        }
-        .event-card-row1 {
-            display: flex; align-items:flex-start; justify-content:space-between; gap:12px;
-            margin-bottom: 10px;
-        }
-        .event-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 17px; font-weight: 700; line-height:1.3;
-        }
-        .active-badge {
-            background: var(--green-light);
-            color: var(--green);
-            border: 1px solid #bbf7d0;
-            font-size: 11px; font-weight: 700;
-            padding: 4px 10px; border-radius: 20px;
-            white-space: nowrap; flex-shrink:0;
-        }
-        .event-meta {
-            display: flex; align-items:center; gap:16px; flex-wrap:wrap;
-        }
-        .event-meta-item {
-            display: flex; align-items:center; gap:5px;
-            font-size: 12.5px; color:var(--text2); font-weight:500;
-        }
-        .event-meta-item strong { color:var(--text); font-weight:700; }
+        .ev-card{border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:8px;transition:all 0.18s;}
+        .ev-card:last-child{margin-bottom:0;}
+        .ev-card:hover{border-color:var(--accent);}
+        .ev-title{font-weight:600;font-size:13.5px;margin-bottom:3px;}
+        .ev-date{font-size:11px;color:var(--accent);font-weight:600;margin-bottom:8px;}
+        .ev-btns{display:flex;gap:6px;}
 
-        /* counter pill */
-        .count-pill {
-            display: inline-flex; align-items:center; gap:6px;
-            background: var(--accent-light);
-            color: var(--accent);
-            border: 1px solid #c7d7fe;
-            padding: 5px 12px; border-radius: 20px;
-            font-size: 12.5px; font-weight: 700;
-        }
-        .count-num {
-            font-family: 'DM Serif Display', serif;
-            font-size: 20px; line-height:1;
-        }
+        .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:8px 14px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;text-decoration:none;transition:all 0.18s;white-space:nowrap;}
+        .btn-primary{background:var(--accent);color:#fff;box-shadow:0 2px 8px rgba(37,99,235,0.25);}
+        .btn-primary:hover{background:#1d4ed8;}
+        .btn-secondary{background:var(--bg3);color:var(--text2);border:1.5px solid var(--border);}
+        .btn-secondary:hover{background:var(--bg);color:var(--text);}
+        .btn-sm{padding:6px 11px;font-size:12px;}
 
-        /* ── ACTIONS ROW ── */
-        .event-card-actions {
-            padding: 14px 22px;
-            display: flex; align-items:center; gap:10px;
-            background: var(--bg3);
-        }
-        .btn-attend {
-            flex: 1;
-            display: flex; align-items:center; justify-content:center; gap:8px;
-            padding: 11px 18px;
-            background: var(--accent);
-            color: #fff;
-            border-radius: var(--radius-sm);
-            font-family: 'Outfit', sans-serif;
-            font-size: 14px; font-weight: 700;
-            text-decoration: none;
-            transition: all 0.18s;
-            box-shadow: 0 2px 8px rgba(37,99,235,0.25);
-        }
-        .btn-attend:hover { background: #1d4ed8; transform:translateY(-1px); box-shadow:0 4px 16px rgba(37,99,235,0.35); }
-        .btn-report {
-            display: flex; align-items:center; gap:6px;
-            padding: 11px 16px;
-            background: var(--bg2);
-            color: var(--text2);
-            border: 1.5px solid var(--border);
-            border-radius: var(--radius-sm);
-            font-family: 'Outfit', sans-serif;
-            font-size: 13.5px; font-weight: 600;
-            text-decoration: none;
-            transition: all 0.18s;
-        }
-        .btn-report:hover { background:var(--bg); border-color:var(--border2); color:var(--text); }
+        .empty-bucket{text-align:center;padding:24px 12px;color:var(--text3);font-size:13px;}
+        .live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);box-shadow:0 0 0 3px rgba(22,163,74,0.2);display:inline-block;animation:pulse 2s infinite;flex-shrink:0;}
+        @keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(22,163,74,0.18);}50%{box-shadow:0 0 0 6px rgba(22,163,74,0.06);}}
 
-        /* ── EMPTY STATE ── */
-        .empty-wrap {
-            background: var(--bg2);
-            border: 1.5px solid var(--border);
-            border-radius: var(--radius);
-            padding: 60px 32px;
-            text-align: center;
-            box-shadow: var(--shadow-sm);
-        }
-        .empty-emoji { font-size: 48px; margin-bottom: 16px; }
-        .empty-title {
-            font-family: 'Playfair Display', serif;
-            font-size: 20px; font-weight: 700;
-            margin-bottom: 8px;
-        }
-        .empty-sub { font-size: 13.5px; color:var(--text2); line-height:1.6; max-width:320px; margin:0 auto; }
-
-        @media print { .topbar, .event-card-actions { display:none !important; } }
-
-        @media (max-width: 600px) {
-            .vol-content { padding: 16px 14px; }
-            .topbar { padding: 0 16px; }
-            .date-banner { padding: 14px 16px; gap: 10px; }
-            .date-icon { width: 38px; height: 38px; font-size: 17px; }
-            .date-value { font-size: 15px; }
-            .event-card-top { padding: 16px 16px 12px; }
-            .event-card-actions { padding: 12px 16px; flex-direction: column; }
-            .btn-attend { width: 100%; }
-            .btn-report { width: 100%; justify-content: center; }
-            .event-title { font-size: 15px; }
-            .count-num { font-size: 17px; }
-            .section-title { font-size: 15px; }
-            .empty-wrap { padding: 40px 20px; }
-        }
+        /* colors per type */
+        .icon-sunday{background:#fef9c3;}
+        .icon-wednesday{background:var(--accent-light);}
+        .icon-balsabha{background:var(--purple-light);}
+        .icon-hostel{background:var(--orange-light);}
     </style>
 </head>
 <body>
-
 <div class="topbar">
     <div class="topbar-left">
         <div class="logo-mark">🎯</div>
@@ -280,69 +76,47 @@
 
 <div class="page">
 
-    <!-- Today's date banner -->
-    <div class="date-banner">
-        <div class="date-icon">📅</div>
-        <div>
-            <div class="date-label">Today</div>
-            <div class="date-value" id="today-date"></div>
-        </div>
-    </div>
+    {% set type_meta = {
+        'sunday':    {'icon': '🙏', 'label': 'Sunday Sabha',    'sub': 'Weekly Sunday sabha',     'cls': 'icon-sunday'},
+        'wednesday': {'icon': '📿', 'label': 'Wednesday Sabha', 'sub': 'Weekly Wednesday sabha',   'cls': 'icon-wednesday'},
+        'balsabha':  {'icon': '⭐', 'label': 'Bal Sabha',       'sub': 'Bal sabha events',         'cls': 'icon-balsabha'},
+        'hostel':    {'icon': '🏠', 'label': 'Hostel Assembly', 'sub': 'Friday youth assembly',    'cls': 'icon-hostel'},
+    } %}
 
-    <!-- Section header -->
-    <div class="section-hd">
-        <div class="section-dot"></div>
-        <div class="section-title">Active Events</div>
-        {% if active %}
-        <span class="section-count">{{ active|length }} open</span>
-        {% endif %}
-    </div>
-
-    {% if active %}
-        {% for e in active %}
-        <div class="event-card">
-            <div class="event-card-top">
-                <div class="event-card-row1">
-                    <div class="event-title">{{ e.title }}</div>
-                    <span class="active-badge">● Live</span>
+    <div class="buckets-grid">
+        {% for etype, meta in type_meta.items() %}
+        {% set events = buckets.get(etype, []) %}
+        <div class="bucket">
+            <div class="bucket-header">
+                <div class="bucket-icon {{ meta.cls }}">{{ meta.icon }}</div>
+                <div>
+                    <div class="bucket-title">{{ meta.label }}</div>
+                    <div class="bucket-subtitle">{{ meta.sub }}</div>
                 </div>
-                <div class="event-meta">
-                    <div class="event-meta-item">
-                        📅 <strong>{{ e.event_date }}</strong>
-                    </div>
-                    <div class="count-pill">
-                        <span class="count-num">{{ e.attendance_count }}</span>
-                        <span>present</span>
-                    </div>
-                </div>
+                {% if events %}
+                <div class="live-dot" style="margin-left:auto;"></div>
+                {% endif %}
             </div>
-            <div class="event-card-actions">
-                <a href="{{ url_for('volunteer_attendance', id=e.id) }}" class="btn-attend">
-                    ✓ Take Attendance
-                </a>
-                <a href="{{ url_for('volunteer_report', eid=e.id) }}" class="btn-report">
-                    📄 Report
-                </a>
+            <div class="bucket-body">
+                {% if events %}
+                    {% for e in events %}
+                    <div class="ev-card">
+                        <div class="ev-title">{{ e.title }}</div>
+                        <div class="ev-date">📅 {{ e.event_date }} · {{ e.attendance_count }} present</div>
+                        <div class="ev-btns">
+                            <a href="{{ url_for('volunteer_attendance', id=e.id) }}" class="btn btn-primary btn-sm" style="flex:1;">✓ Attendance</a>
+                            <a href="{{ url_for('volunteer_report', eid=e.id) }}" class="btn btn-secondary btn-sm">Report</a>
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% else %}
+                <div class="empty-bucket">No active events</div>
+                {% endif %}
             </div>
         </div>
         {% endfor %}
-
-    {% else %}
-        <div class="empty-wrap">
-            <div class="empty-emoji">🕐</div>
-            <div class="empty-title">No Active Events</div>
-            <div class="empty-sub">There are no events with an open attendance window right now. Check back when an event is scheduled.</div>
-        </div>
-    {% endif %}
+    </div>
 
 </div>
-
-<script>
-// Show today's date nicely
-const d = new Date();
-const opts = { weekday:'long', year:'numeric', month:'long', day:'numeric' };
-document.getElementById('today-date').textContent = d.toLocaleDateString('en-IN', opts);
-</script>
-
 </body>
 </html>

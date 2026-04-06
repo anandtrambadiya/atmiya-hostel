@@ -71,8 +71,26 @@
                 <div class="global-search-results" id="sabha-results">
                     <div class="no-results" style="padding:20px;">Start typing to search satsangis...</div>
                 </div>
-                <div style="font-size:11px;color:var(--text3);margin-top:10px;line-height:1.5;">
-                    Click a name to mark present. Click again to unmark.
+                <div style="margin-top:10px;padding-top:10px;border-top:1.5px solid var(--border);">
+                    <button onclick="showAddForm()" class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;">+ Add New Satsangi</button>
+                </div>
+                <!-- Quick add form (hidden by default) -->
+                <div id="quick-add-form" style="display:none;margin-top:10px;padding:12px;background:var(--bg3);border-radius:9px;border:1.5px solid var(--border);">
+                    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text2);margin-bottom:10px;">Add New Satsangi</div>
+                    <div style="margin-bottom:8px;">
+                        <input type="text" id="new-name" placeholder="Full name *" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:13px;background:var(--bg2);outline:none;">
+                    </div>
+                    <div style="margin-bottom:10px;">
+                        <input type="tel" id="new-mobile" placeholder="Mobile (optional)" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:13px;background:var(--bg2);outline:none;">
+                    </div>
+                    <div style="display:flex;gap:7px;">
+                        <button onclick="quickAddSatsangi()" class="btn btn-primary btn-sm" style="flex:1;justify-content:center;">Add & Mark Present</button>
+                        <button onclick="hideAddForm()" class="btn btn-secondary btn-sm">Cancel</button>
+                    </div>
+                    <div id="add-error" style="display:none;color:var(--red);font-size:12px;margin-top:6px;"></div>
+                </div>
+                <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">
+                    Search and tap a name to mark present. Tap again to unmark.
                 </div>
             </div>
         </div>
@@ -239,6 +257,44 @@ function showToast(msg, type='success') {
     document.body.appendChild(t);
     setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; }, 2200);
     setTimeout(() => t.remove(), 2500);
+}
+
+// ── Quick add satsangi ──
+function showAddForm() {
+    document.getElementById('quick-add-form').style.display = '';
+    document.getElementById('new-name').focus();
+}
+function hideAddForm() {
+    document.getElementById('quick-add-form').style.display = 'none';
+    document.getElementById('new-name').value = '';
+    document.getElementById('new-mobile').value = '';
+    document.getElementById('add-error').style.display = 'none';
+}
+async function quickAddSatsangi() {
+    const name = document.getElementById('new-name').value.trim();
+    const mobile = document.getElementById('new-mobile').value.trim();
+    const errEl = document.getElementById('add-error');
+    if (!name) { errEl.textContent = 'Name is required'; errEl.style.display = ''; return; }
+    const res = await fetch('/api/satsangis/quick-add', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name, mobile})
+    });
+    const data = await res.json();
+    if (data.success) {
+        // Add to local list
+        ALL_SATSANGIS.push({id: data.id, name: data.name, mobile: data.mobile || '', address: ''});
+        // Auto-mark present
+        const fakeEl = document.createElement('div');
+        fakeEl.dataset.sid = data.id;
+        await toggleSatsangi(data.id, data.name, data.mobile || '', fakeEl);
+        hideAddForm();
+        // Refresh search
+        const q = document.getElementById('sabha-search').value;
+        if (q) searchSatsangi(q);
+        showToast(data.name + ' added and marked present', 'success');
+    } else {
+        errEl.textContent = data.error || 'Failed to add'; errEl.style.display = '';
+    }
 }
 
 document.addEventListener('click', e => {
