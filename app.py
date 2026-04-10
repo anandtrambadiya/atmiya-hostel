@@ -877,11 +877,121 @@ def api_quick_add_satsangi():
 def import_data():
     result = None
     if request.method == 'POST':
+        import_type = request.form.get('import_type', 'hostel')
         f = request.files.get('datafile')
-        if f:
-            result = {'status': 'pending', 'filename': f.filename,
-                      'message': 'File received. Auto-detection coming soon.'}
+        if f and f.filename:
+            try:
+                import openpyxl, io, tempfile, os as _os
+                data = f.read()
+                with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp:
+                    tmp.write(data); tmp_path = tmp.name
+                if import_type == 'satsangi':
+                    result = _import_satsangis(tmp_path)
+                else:
+                    result = _import_hostel(tmp_path)
+                _os.unlink(tmp_path)
+            except Exception as e:
+                result = {'status': 'error', 'message': str(e), 'inserted': 0, 'skipped': 0}
+        else:
+            result = {'status': 'error', 'message': 'No file selected.', 'inserted': 0, 'skipped': 0}
     return render_template('import_data.html', result=result)
+
+def _import_satsangis(filepath):
+    """Import satsangis from single-column Excel (column A = name)."""
+    import openpyxl
+    wb = openpyxl.load_workbook(filepath, data_only=True)
+    ws = wb.active
+    inserted = skipped = 0
+    conn = get_db(); c = conn.cursor()
+    for row in ws.iter_rows(min_row=1):
+        val = row[0].value
+        if not val: continue
+        name = str(val).strip()
+        if not name or name.lower() in ('name','full name','satsangi','sr','sr.'): continue
+        # Skip if already exists
+        c.execute("SELECT id FROM satsangis WHERE name ILIKE %s", (name,))
+        if c.fetchone():
+            skipped += 1; continue
+        c.execute("INSERT INTO satsangis (name) VALUES (%s)", (name,))
+        inserted += 1
+    conn.commit(); conn.close()
+    return {'status': 'success', 'inserted': inserted, 'skipped': skipped,
+            'message': f'Satsangi import complete.'}
+
+def _import_hostel(filepath):
+    """Import hostel data from Excel with merged-cell building names."""
+    import openpyxl
+    wb = openpyxl.load_workbook(filepath, data_only=True)
+    ws = wb.active
+    # Find merged rows = building names
+    merged_rows = {}
+    for mc in ws.merged_cells.ranges:
+        cell = ws.cell(mc.min_row, mc.min_col)
+        if cell.value:
+            merged_rows[mc.min_row] = str(cell.value).strip()
+    # Parse rows
+    current_building = None
+    skip_next = False
+    students = []
+    for row_num in range(1, ws.max_row + 1):
+        if row_num in merged_rows:
+            current_building = merged_rows[row_num]
+            skip_next = True; continue
+        if skip_next:
+            skip_next = False; continue
+        row = ws[row_num]
+        vals = [c.value for c in row]
+        if len(vals) < 2: continue
+        room, name = vals[0], vals[1]
+        if not name or not isinstance(name, str) or not name.strip(): continue
+        name = name.strip()
+        if name.lower() in ('full name','name','total',''): continue
+        if not room: continue
+        room_str = str(room).strip()
+        if room_str.endswith('.0'): room_str = room_str[:-2]
+        if not current_building: continue
+        students.append({'building': current_building, 'room': room_str, 'name': name})
+    if not students:
+        return {'status': 'error', 'message': 'No student data found in file.', 'inserted': 0, 'skipped': 0}
+    # Insert into DB
+    conn = get_db(); c = conn.cursor()
+    building_ids = {}; room_ids = {}
+    inserted = skipped = 0
+    for s in students:
+        bname = s['building']
+        rname = s['room']
+        # Get or create building
+        if bname not in building_ids:
+            c.execute("SELECT id FROM buildings WHERE name ILIKE %s", (bname,))
+            row = c.fetchone()
+            if row:
+                building_ids[bname] = row[0]
+            else:
+                c.execute("INSERT INTO buildings (name) VALUES (%s) RETURNING id", (bname,))
+                building_ids[bname] = c.fetchone()[0]
+        bid = building_ids[bname]
+        # Get or create room
+        room_key = f"{bid}:{rname}"
+        if room_key not in room_ids:
+            c.execute("SELECT id FROM rooms WHERE building_id=%s AND room_number=%s", (bid, rname))
+            row = c.fetchone()
+            if row:
+                room_ids[room_key] = row[0]
+            else:
+                c.execute("INSERT INTO rooms (building_id, room_number, capacity, floor) VALUES (%s,%s,%s,%s) RETURNING id",
+                          (bid, rname, 10, 1))
+                room_ids[room_key] = c.fetchone()[0]
+        rid = room_ids[room_key]
+        # Insert student if not duplicate name in same building
+        c.execute("""SELECT s.id FROM students s JOIN rooms r ON s.room_id=r.id
+                     WHERE r.building_id=%s AND s.name ILIKE %s""", (bid, s['name']))
+        if c.fetchone():
+            skipped += 1; continue
+        c.execute("INSERT INTO students (name, room_id) VALUES (%s,%s)", (s['name'], rid))
+        inserted += 1
+    conn.commit(); conn.close()
+    return {'status': 'success', 'inserted': inserted, 'skipped': skipped,
+            'message': f'Hostel import complete. {len(set(s["building"] for s in students))} buildings processed.'}
 
 # ── STARTUP ───────────────────────────────────────────────
 init_db()
