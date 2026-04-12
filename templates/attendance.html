@@ -291,9 +291,9 @@ if volunteer_mode %}
 
   // Pre-populate present list from server data
   window.addEventListener('DOMContentLoaded', () => {
-      const markedSet = new Set(MARKED_IDS);
-      ALL_STUDENTS.filter(s => markedSet.has(s.id)).forEach(s => {
-          addToMarkedList(s.id, s.name, s.room_number || '', false);
+      MARKED_IDS.forEach(id => {
+          const s = ALL_STUDENTS.find(x => x.id === id);
+          if (s) addToMarkedList(s.id, s.name, s.room_number || '', false);
       });
   });
 
@@ -532,7 +532,7 @@ if volunteer_mode %}
           <div class="marked-name">${name}</div>
           ${room ? `<div class="marked-room">Rm ${room}</div>` : ''}
           <button class="remove-btn" onclick="unmarkById(${id},'${name.replace(/'/g,"\\'")}')">×</button>`;
-      list.appendChild(item);
+      list.insertBefore(item, list.firstChild);
   }
 
   function removeFromMarkedList(id) {

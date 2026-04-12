@@ -339,7 +339,7 @@ def volunteer_attendance(id):
     if not event: conn.close(); return redirect(url_for('volunteer_dashboard'))
     # Route to correct attendance flow based on event type
     if is_sabha_type(event.get('event_type','')):
-        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present'", (id,))
+        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present' ORDER BY id ASC", (id,))
         marked_ids = [r[0] for r in c.fetchall()]
         c.execute("SELECT id, name, COALESCE(mobile,'') as mobile, COALESCE(address,'') as address FROM satsangis ORDER BY name")
         all_satsangis = fetchall_dict(c)
@@ -351,7 +351,7 @@ def volunteer_attendance(id):
     else:
         c.execute('SELECT * FROM buildings ORDER BY name')
         buildings = fetchall_dict(c)
-        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='student'", (id,))
+        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='student' AND status='present' ORDER BY id ASC", (id,))
         marked_ids = [r[0] for r in c.fetchall()]
         c.execute('''SELECT s.id, s.name, s.roll_number, r.room_number,
                b.name as building_name, b.id as building_id, r.id as room_id
@@ -512,7 +512,7 @@ def take_attendance(id):
     c.execute('SELECT * FROM events WHERE id=%s', (id,))
     event = fetchone_dict(c)
     if is_sabha_type(event.get('event_type','')):
-        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present'", (id,))
+        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='satsangi' AND status='present' ORDER BY id ASC", (id,))
         marked_ids = [r[0] for r in c.fetchall()]
         c.execute("SELECT id, name, COALESCE(mobile,'') as mobile, COALESCE(address,'') as address FROM satsangis ORDER BY name")
         all_satsangis = fetchall_dict(c); conn.close()
@@ -523,7 +523,7 @@ def take_attendance(id):
     else:
         c.execute('SELECT * FROM buildings ORDER BY name')
         buildings = fetchall_dict(c)
-        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='student'", (id,))
+        c.execute("SELECT person_id FROM attendance WHERE event_id=%s AND person_type='student' AND status='present' ORDER BY id ASC", (id,))
         marked_ids = [r[0] for r in c.fetchall()]
         c.execute('''SELECT s.id, s.name, s.roll_number, r.room_number,
                b.name as building_name, b.id as building_id, r.id as room_id

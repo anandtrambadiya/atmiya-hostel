@@ -131,9 +131,12 @@ const ALL_SATSANGIS = {{ all_satsangis | tojson }}.map(s => ({
 
 // Pre-populate present list on load
 window.addEventListener('DOMContentLoaded', () => {
-    const markedSet = new Set(MARKED_IDS);
-    ALL_SATSANGIS.filter(s => markedSet.has(s.id)).forEach(s => addToList(s.id, s.name, s.mobile, false));
+    MARKED_IDS.forEach(id => {
+        const s = ALL_SATSANGIS.find(x => x.id === id);
+        if (s) addToList(s.id, s.name, s.mobile, false);
+    });
 });
+
 
 function searchSatsangi(q) {
     const results = document.getElementById('sabha-results');
