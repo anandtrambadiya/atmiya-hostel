@@ -149,7 +149,7 @@ function searchSatsangi(q) {
     if (matches.length === 0) {
         results.innerHTML = `<div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
             <div style="font-size:13px;color:var(--text3);">No results for "<strong>${q}</strong>"</div>
-            <button onclick="showAddForm('${q.replace(/'/g,\"\\'\")}'); document.getElementById('sabha-results').classList.remove('visible');"
+            <button onclick="showAddForm(this.dataset.q); document.getElementById('sabha-results').classList.remove('visible');" data-q="${q.replace(/\"/g, '&quot;')}"
                 style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:7px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
                 + Add New
             </button>
