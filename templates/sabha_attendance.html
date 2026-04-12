@@ -26,14 +26,11 @@
     <span>Attendance</span>
 </div>
 
-<!-- Event info bar -->
-<div style="background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;box-shadow:var(--shadow-sm);">
-    <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:40px;height:40px;background:#fdf4ff;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;">🙏</div>
-        <div>
-            <div style="font-family:'Playfair Display',serif;font-weight:700;font-size:16px;">{{ event.title }}</div>
-            <div style="font-size:12px;color:var(--accent);font-weight:600;margin-top:2px;">📅 {{ event.event_date }}</div>
-        </div>
+<!-- Event info -->
+<div style="background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius);padding:14px 20px;margin-bottom:18px;display:flex;justify-content:space-between;flex-wrap:wrap;">
+    <div>
+        <div style="font-weight:700;">{{ event.title }}</div>
+        <div style="font-size:12px;color:var(--accent);">📅 {{ event.event_date }}</div>
     </div>
     {% if window_open %}
     <span class="window-badge window-open">● Attendance Open</span>
@@ -44,279 +41,188 @@
 
 {% if not window_open %}
 <div class="locked-banner">
-    <div class="locked-icon">🔒</div>
-    <div>
-        <div class="locked-title">Attendance Window Closed</div>
-        <div class="locked-desc">The attendance window for this event has passed.</div>
-    </div>
+    🔒 Attendance window closed
 </div>
 {% endif %}
 
 <div class="attendance-layout">
-    <!-- LEFT: Search -->
+
+    <!-- LEFT -->
     <div>
-        <div class="step-panel">
-            <div class="step-header" style="cursor:default;">
-                <div class="step-num active" style="font-size:14px;">🔍</div>
-                <div>
-                    <div class="step-label active">Search Satsangi</div>
-                    <div class="step-sub">Search by name or mobile number</div>
-                </div>
-            </div>
-            <div class="step-content open">
-                <div class="global-search-bar">
-                    <span class="search-icon">🔍</span>
-                    <input type="text" id="sabha-search" placeholder="Type name or mobile..." autocomplete="off" oninput="searchSatsangi(this.value)">
-                </div>
-                <div class="global-search-results" id="sabha-results">
-                    <div class="no-results" style="padding:20px;">Start typing to search satsangis...</div>
-                </div>
-                <div style="margin-top:10px;padding-top:10px;border-top:1.5px solid var(--border);">
-                    <button onclick="showAddForm()" class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;">+ Add New Satsangi</button>
-                </div>
-                <!-- Quick add form (hidden by default) -->
-                <div id="quick-add-form" style="display:none;margin-top:10px;padding:12px;background:var(--bg3);border-radius:9px;border:1.5px solid var(--border);">
-                    <div style="font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;color:var(--text2);margin-bottom:10px;">Add New Satsangi</div>
-                    <div style="margin-bottom:8px;">
-                        <input type="text" id="new-name" placeholder="Full name *" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:13px;background:var(--bg2);outline:none;">
-                    </div>
-                    <div style="margin-bottom:10px;">
-                        <input type="tel" id="new-mobile" placeholder="Mobile number *" required style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:13px;background:var(--bg2);outline:none;">
-                    </div>
-                    <div style="display:flex;gap:7px;">
-                        <button onclick="quickAddSatsangi()" class="btn btn-primary btn-sm" style="flex:1;justify-content:center;">Add & Mark Present</button>
-                        <button onclick="hideAddForm()" class="btn btn-secondary btn-sm">Cancel</button>
-                    </div>
-                    <div id="add-error" style="display:none;color:var(--red);font-size:12px;margin-top:6px;"></div>
-                </div>
-                <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5;">
-                    Search and tap a name to mark present. Tap again to unmark.
-                </div>
-            </div>
+        <input type="text" id="sabha-search" placeholder="Search name or mobile..." oninput="searchSatsangi(this.value)">
+        <div id="sabha-results"></div>
+
+        <button onclick="showAddForm()">+ Add New</button>
+
+        <!-- Quick Add -->
+        <div id="quick-add-form" style="display:none;">
+            <input type="text" id="new-name" placeholder="Name *">
+            <input type="tel" id="new-mobile" placeholder="Mobile (optional)">
+            <button onclick="quickAddSatsangi()">Add & Mark</button>
+            <button onclick="hideAddForm()">Cancel</button>
+            <div id="add-error"></div>
         </div>
     </div>
 
-    <!-- RIGHT: Counter + present list -->
-    <div class="summary-panel">
-        <div class="counter-block" style="background:linear-gradient(135deg,#7c3aed,#9b72f5);">
-            <div class="counter-num" id="present-count">{{ marked_ids|length }}</div>
-            <div class="counter-label">Satsangis Present</div>
-        </div>
-        <div class="marked-list-wrap">
-            <div class="marked-list-title">Present</div>
-            <div class="marked-list" id="marked-list">
-                {% if not marked_ids %}
-                <div class="no-results" id="empty-msg">No one marked present yet</div>
-                {% else %}
-                <div class="no-results" id="empty-msg" style="display:none;"></div>
-                {% endif %}
-            </div>
-        </div>
+    <!-- RIGHT -->
+    <div>
+        <h2 id="present-count">{{ marked_ids|length }}</h2>
+        <div id="marked-list"></div>
+        <div id="empty-msg">No one marked</div>
     </div>
+
 </div>
 
 <script>
 const EVENT_ID = {{ event.id }};
 const WINDOW_OPEN = {{ 'true' if window_open else 'false' }};
 const MARKED_IDS = {{ marked_ids | tojson }};
-// Normalize nulls to empty strings to avoid JS errors
+
 const ALL_SATSANGIS = {{ all_satsangis | tojson }}.map(s => ({
     ...s,
-    mobile: s.mobile || '',
-    address: s.address || ''
+    mobile: s.mobile || ''
 }));
 
-// Pre-populate present list on load
-window.addEventListener('DOMContentLoaded', () => {
-    const markedSet = new Set(MARKED_IDS);
-    ALL_SATSANGIS.filter(s => markedSet.has(s.id)).forEach(s => addToList(s.id, s.name, s.mobile, false));
-});
+// preload list
+window.onload = () => {
+    const set = new Set(MARKED_IDS);
+    ALL_SATSANGIS.forEach(s => {
+        if (set.has(s.id)) addToList(s.id, s.name, s.mobile);
+    });
+};
 
+// SEARCH
 function searchSatsangi(q) {
-    const results = document.getElementById('sabha-results');
+    const box = document.getElementById('sabha-results');
+
     if (!q.trim()) {
-        results.innerHTML = '<div class="no-results" style="padding:20px;">Start typing to search satsangis...</div>';
-        results.classList.add('visible');
+        box.innerHTML = 'Start typing...';
         return;
     }
-    const lower = q.toLowerCase();
+
     const matches = ALL_SATSANGIS.filter(s =>
-        s.name.toLowerCase().includes(lower) || s.mobile.includes(q)
+        s.name.toLowerCase().includes(q.toLowerCase()) ||
+        s.mobile.includes(q)
     );
+
     if (matches.length === 0) {
-        results.innerHTML = `<div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
-            <div style="font-size:13px;color:var(--text3);">No results for "<strong>${q}</strong>"</div>
-            <button onclick="showAddForm('${q.replace(/'/g,\"\\'\")}'); document.getElementById('sabha-results').classList.remove('visible');"
-                style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:7px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
-                + Add New
-            </button>
-        </div>`;
-    } else {
-        results.innerHTML = matches.map(s => {
-            const present = MARKED_IDS.includes(s.id);
-            return `<div class="search-result-item ${present ? 'already-present' : ''}"
-                data-sid="${s.id}" onclick="handleResultClick(this)">
-                <div>
-                    <div class="result-name">${s.name}</div>
-                    <div class="result-info">${s.mobile || 'No mobile'}</div>
-                </div>
-                <span class="result-badge" id="rb-${s.id}">${present ? '✓ Present' : ''}</span>
+        box.innerHTML = `
+            <div>
+                No results for "<b>${q}</b>"
+                <button onclick='showAddForm(${JSON.stringify(q)})'>+ Add</button>
             </div>`;
-        }).join('');
+        return;
     }
-    results.classList.add('visible');
+
+    box.innerHTML = matches.map(s => {
+        const present = MARKED_IDS.includes(s.id);
+        return `
+        <div onclick="toggleSatsangi(${s.id}, '${s.name}', '${s.mobile}')">
+            ${s.name} (${s.mobile})
+            ${present ? '✓' : ''}
+        </div>`;
+    }).join('');
 }
 
-function handleResultClick(el) {
-    const sid = parseInt(el.dataset.sid);
-    const s = ALL_SATSANGIS.find(x => x.id === sid);
-    if (s) toggleSatsangi(sid, s.name, s.mobile, el);
-}
+// TOGGLE
+async function toggleSatsangi(id, name, mobile) {
 
-async function toggleSatsangi(id, name, mobile, el) {
     const present = MARKED_IDS.includes(id);
+
     if (!present) {
-        if (!WINDOW_OPEN) { showToast('Attendance window is closed', 'error'); return; }
+        if (!WINDOW_OPEN) return alert('Closed');
+
         const res = await fetch('/api/sabha/mark', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({event_id: EVENT_ID, satsangi_id: id})
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                event_id: EVENT_ID,
+                satsangi_id: id
+            })
         });
+
         const data = await res.json();
+
         if (data.success) {
             MARKED_IDS.push(id);
-            document.getElementById('present-count').textContent = data.count;
-            el.classList.add('already-present');
-            const rb = document.getElementById('rb-' + id);
-            if (rb) rb.textContent = '✓ Present';
-            addToList(id, name, mobile, true);
-            showToast(name + ' marked present', 'success');
-        } else {
-            showToast(data.error || 'Failed', 'error');
+            document.getElementById('present-count').innerText = data.count;
+            addToList(id, name, mobile);
         }
+
     } else {
+
         const res = await fetch('/api/sabha/unmark', {
-            method: 'POST', headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({event_id: EVENT_ID, satsangi_id: id})
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                event_id: EVENT_ID,
+                satsangi_id: id
+            })
         });
+
         const data = await res.json();
+
         if (data.success) {
             MARKED_IDS.splice(MARKED_IDS.indexOf(id), 1);
-            document.getElementById('present-count').textContent = data.count;
-            el.classList.remove('already-present');
-            const rb = document.getElementById('rb-' + id);
-            if (rb) rb.textContent = '';
+            document.getElementById('present-count').innerText = data.count;
             removeFromList(id);
-            showToast('Removed', 'info');
         }
     }
 }
 
-function addToList(id, name, mobile, animate) {
+// LIST
+function addToList(id, name, mobile) {
+    const div = document.createElement('div');
+    div.id = 'ml-' + id;
+    div.innerHTML = `${name} (${mobile}) <button onclick="removeById(${id})">x</button>`;
+    document.getElementById('marked-list').appendChild(div);
     document.getElementById('empty-msg').style.display = 'none';
-    if (document.getElementById('ml-' + id)) return;
-    const list = document.getElementById('marked-list');
-    const item = document.createElement('div');
-    item.className = 'marked-item'; item.id = 'ml-' + id;
-    if (!animate) item.style.animation = 'none';
-    item.innerHTML = `<div class="marked-dot"></div>
-        <div class="marked-name">${name}</div>
-        ${mobile ? `<div class="marked-room">${mobile}</div>` : ''}
-        <button class="remove-btn" data-uid="${id}" onclick="unmarkById(this)">×</button>`;
-    // Prepend so newest appears at top
-    list.insertBefore(item, list.firstChild);
 }
 
 function removeFromList(id) {
     const el = document.getElementById('ml-' + id);
-    if (el) { el.style.opacity = '0'; el.style.transition = 'opacity 0.2s'; setTimeout(() => el.remove(), 200); }
-    if (MARKED_IDS.length === 0) document.getElementById('empty-msg').style.display = '';
+    if (el) el.remove();
 }
 
-async function unmarkById(btn) {
-    const id = parseInt(btn.dataset.uid);
-    const s = ALL_SATSANGIS.find(x => x.id === id);
-    if (!s) return;
-    const res = await fetch('/api/sabha/unmark', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({event_id: EVENT_ID, satsangi_id: id})
-    });
-    const data = await res.json();
-    if (data.success) {
-        MARKED_IDS.splice(MARKED_IDS.indexOf(id), 1);
-        document.getElementById('present-count').textContent = data.count;
-        removeFromList(id);
-        // Update search result if visible
-        const srEl = document.querySelector(`[data-sid="${id}"]`);
-        if (srEl) {
-            srEl.classList.remove('already-present');
-            const rb = document.getElementById('rb-' + id);
-            if (rb) rb.textContent = '';
-        }
-        showToast('Removed', 'info');
-    }
+// REMOVE BTN
+async function removeById(id) {
+    await toggleSatsangi(id);
 }
 
-function showToast(msg, type='success') {
-    const icons = {success:'✓', error:'✗', info:'○'};
-    const t = document.createElement('div');
-    t.className = `toast ${type}`;
-    t.innerHTML = `<span class="t-icon">${icons[type]||'●'}</span> ${msg}`;
-    document.body.appendChild(t);
-    setTimeout(() => { t.style.opacity = '0'; t.style.transition = 'opacity 0.3s'; }, 2200);
-    setTimeout(() => t.remove(), 2500);
+// ADD FORM
+function showAddForm(name = '') {
+    document.getElementById('quick-add-form').style.display = 'block';
+    document.getElementById('new-name').value = name;
 }
 
-// ── Quick add satsangi ──
-function showAddForm(prefillName) {
-    document.getElementById('quick-add-form').style.display = '';
-    if (prefillName) {
-        document.getElementById('new-name').value = prefillName;
-        document.getElementById('new-mobile').focus();
-    } else {
-        document.getElementById('new-name').focus();
-    }
-}
 function hideAddForm() {
     document.getElementById('quick-add-form').style.display = 'none';
-    document.getElementById('new-name').value = '';
-    document.getElementById('new-mobile').value = '';
-    document.getElementById('add-error').style.display = 'none';
 }
+
+// QUICK ADD
 async function quickAddSatsangi() {
     const name = document.getElementById('new-name').value.trim();
     const mobile = document.getElementById('new-mobile').value.trim();
-    const errEl = document.getElementById('add-error');
-    if (!name) { errEl.textContent = 'Name is required'; errEl.style.display = ''; return; }
-    if (!mobile) { errEl.textContent = "Mobile number is required"; errEl.style.display = ""; document.getElementById("new-mobile").focus(); return; }
+
+    if (!name) {
+        document.getElementById('add-error').innerText = 'Name required';
+        return;
+    }
+
     const res = await fetch('/api/satsangis/quick-add', {
-        method: 'POST', headers: {'Content-Type': 'application/json'},
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({name, mobile})
     });
+
     const data = await res.json();
+
     if (data.success) {
-        // Add to local list
-        ALL_SATSANGIS.push({id: data.id, name: data.name, mobile: data.mobile || '', address: ''});
-        // Auto-mark present
-        const fakeEl = document.createElement('div');
-        fakeEl.dataset.sid = data.id;
-        await toggleSatsangi(data.id, data.name, data.mobile || '', fakeEl);
+        ALL_SATSANGIS.push({id: data.id, name, mobile});
+        await toggleSatsangi(data.id, name, mobile);
         hideAddForm();
-        // Refresh search
-        const q = document.getElementById('sabha-search').value;
-        if (q) searchSatsangi(q);
-        showToast(data.name + ' added and marked present', 'success');
-    } else {
-        errEl.textContent = data.error || 'Failed to add'; errEl.style.display = '';
     }
 }
-
-document.addEventListener('click', e => {
-    if (!e.target.closest('#sabha-search') && !e.target.closest('#sabha-results'))
-        document.getElementById('sabha-results').classList.remove('visible');
-});
-document.getElementById('sabha-search').addEventListener('focus', () => {
-    if (document.getElementById('sabha-search').value)
-        document.getElementById('sabha-results').classList.add('visible');
-});
 </script>
+
 {% endblock %}
