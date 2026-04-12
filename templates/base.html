@@ -28,11 +28,8 @@
         <li><a href="{{ url_for('events') }}" class="{% if request.endpoint in ['events','add_event','edit_event','take_attendance','event_report','attendance_report'] %}active{% endif %}" onclick="closeSidebar()">
             <span class="nav-icon">◆</span> All Events
         </a></li>
-        <li><a href="{{ url_for('add_event', type='sabha') }}" onclick="closeSidebar()" style="{% if request.endpoint == 'add_event' and request.args.get('type')=='sabha' %}color:var(--accent);{% endif %}">
-            <span class="nav-icon">🙏</span> New Sabha Event
-        </a></li>
-        <li><a href="{{ url_for('add_event', type='hostel') }}" onclick="closeSidebar()" style="{% if request.endpoint == 'add_event' and request.args.get('type')=='hostel' %}color:var(--accent);{% endif %}">
-            <span class="nav-icon">🏠</span> New Hostel Event
+        <li><a href="{{ url_for('add_event') }}" class="{% if request.endpoint == 'add_event' %}active{% endif %}" onclick="closeSidebar()">
+            <span class="nav-icon">➕</span> New Event
         </a></li>
 
         <li><a href="{{ url_for('analytics') }}" class="{% if request.endpoint == 'analytics' %}active{% endif %}" onclick="closeSidebar()">
