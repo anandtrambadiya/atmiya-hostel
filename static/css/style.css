@@ -784,6 +784,27 @@ textarea {
   pointer-events: none;
 }
 
+.clear-btn {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 16px;
+  cursor: pointer;
+  display: none;
+  line-height: 1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s;
+}
+.clear-btn:hover {
+  color: var(--red);
+  background: var(--red-light);
+}
+
 .select-list {
   display: flex;
   flex-direction: column;

@@ -162,7 +162,9 @@ if volunteer_mode %}
                 type="text"
                 placeholder="Search building..."
                 oninput="filterList(this, 'building-list')"
+                style="padding-right: 32px;"
               />
+              <button class="clear-btn" onclick="clearLocalSearch(this, 'building-list')">×</button>
             </div>
             <div class="select-list" id="building-list">
               {% for b in buildings %}
@@ -197,7 +199,9 @@ if volunteer_mode %}
                 type="text"
                 placeholder="Search room number..."
                 oninput="filterList(this, 'room-list')"
+                style="padding-right: 32px;"
               />
+              <button class="clear-btn" onclick="clearLocalSearch(this, 'room-list')">×</button>
             </div>
             <div class="select-list" id="room-list">
               <div class="no-results">Loading rooms...</div>
@@ -221,7 +225,9 @@ if volunteer_mode %}
                 type="text"
                 placeholder="Search student name..."
                 oninput="filterList(this, 'student-list')"
+                style="padding-right: 32px;"
               />
+              <button class="clear-btn" onclick="clearLocalSearch(this, 'student-list')">×</button>
             </div>
             <div class="select-list" id="student-list">
               <div class="no-results">Loading students...</div>
@@ -240,7 +246,9 @@ if volunteer_mode %}
             placeholder="Type student name to search..."
             oninput="globalStudentSearch(this.value)"
             autocomplete="off"
+            style="padding-right: 32px;"
           />
+          <button class="clear-btn" id="global-search-clear" onclick="document.getElementById('global-name-search').value=''; globalStudentSearch(''); document.getElementById('global-name-search').focus();">×</button>
         </div>
         <div class="global-search-results" id="global-results">
           <div class="no-results" style="padding: 20px">
@@ -309,6 +317,10 @@ if volunteer_mode %}
   // ── FILTER LIST ──
   function filterList(input, listId) {
       const q = input.value.toLowerCase();
+      const clearBtn = input.nextElementSibling;
+      if (clearBtn && clearBtn.classList.contains('clear-btn')) {
+          clearBtn.style.display = q.length > 0 ? 'block' : 'none';
+      }
       const list = document.getElementById(listId);
       let visible = 0;
       list.querySelectorAll('button[data-name]').forEach(btn => {
@@ -321,6 +333,13 @@ if volunteer_mode %}
       if (!nr) { nr = document.createElement('div'); nr.className = 'no-results'; list.appendChild(nr); }
       nr.textContent = visible === 0 && q ? 'No results found' : '';
       nr.style.display = visible === 0 && q ? '' : 'none';
+  }
+
+  function clearLocalSearch(btn, listId) {
+      const input = btn.previousElementSibling;
+      input.value = '';
+      filterList(input, listId);
+      input.focus();
   }
 
   // ── STEP LOGIC ──
@@ -403,10 +422,13 @@ if volunteer_mode %}
 
   // ── GLOBAL NAME SEARCH ──
   function globalStudentSearch(q) {
+      const clearBtn = document.getElementById('global-search-clear');
+      if (clearBtn) clearBtn.style.display = q.length > 0 ? 'block' : 'none';
+      
       const results = document.getElementById('global-results');
       if (!q.trim()) {
           results.innerHTML = '<div class="no-results" style="padding:20px;">Start typing to search students...</div>';
-          results.classList.add('visible');
+          results.classList.remove('visible'); // keep hidden when cleared
           return;
       }
       const lower = q.toLowerCase();
@@ -569,6 +591,12 @@ if volunteer_mode %}
   document.getElementById('global-name-search')?.addEventListener('focus', () => {
       if (document.getElementById('global-name-search').value)
           document.getElementById('global-results').classList.add('visible');
+  });
+  document.getElementById('global-name-search')?.addEventListener('input', () => {
+      if (document.getElementById('global-name-search').value)
+          document.getElementById('global-results').classList.add('visible');
+      else
+          document.getElementById('global-results').classList.remove('visible');
   });
 </script>
 {% endblock %}
