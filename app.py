@@ -8,7 +8,7 @@ def is_attendance_open(event_date_str):
     try:
         event_date = datetime.strptime(str(event_date_str), "%Y-%m-%d").date()
         today = date.today()
-        return event_date <= today <= event_date + timedelta(days=2)
+        return event_date <= today <= event_date + timedelta(days=1)
     except:
         return False
 
@@ -33,7 +33,7 @@ def categorize_events(events_raw):
             edate = datetime.strptime(str(e['event_date']), '%Y-%m-%d').date()
         except:
             past.append(e); continue
-        if edate <= today <= edate + timedelta(days=2):
+        if edate <= today <= edate + timedelta(days=1):
             e['status'] = 'active'; active.append(e)
         elif edate > today:
             e['status'] = 'upcoming'; upcoming.append(e)
@@ -163,7 +163,7 @@ def maybe_auto_mark_absent(event_id, event_date_str, event_type):
     Safe to run multiple times — ON CONFLICT DO NOTHING skips existing records."""
     try:
         edate = datetime.strptime(str(event_date_str), "%Y-%m-%d").date()
-        if date.today() > edate + timedelta(days=2):
+        if date.today() > edate + timedelta(days=1):
             auto_mark_absent(event_id, event_type)
     except:
         pass
@@ -233,7 +233,7 @@ def dashboard():
     for e in raw_events:
         try:
             edate = datetime.strptime(str(e['event_date']), '%Y-%m-%d').date()
-            e['is_active'] = edate <= today <= edate + timedelta(days=2)
+            e['is_active'] = edate <= today <= edate + timedelta(days=1)
         except:
             e['is_active'] = False
         recent_events.append(e)
@@ -286,7 +286,7 @@ def volunteer_dashboard():
     for e in all_events:
         try:
             edate = datetime.strptime(str(e['event_date']), '%Y-%m-%d').date()
-            if edate <= today <= edate + timedelta(days=2):
+            if edate <= today <= edate + timedelta(days=1):
                 e['window_open'] = True
                 etype = e.get('event_type', 'hostel')
                 if etype in buckets:
@@ -313,7 +313,7 @@ def volunteer_events_type(etype):
     for e in events:
         try:
             edate = datetime.strptime(str(e['event_date']), '%Y-%m-%d').date()
-            if edate <= today <= edate + timedelta(days=2):
+            if edate <= today <= edate + timedelta(days=1):
                 e['window_open'] = True
                 active_events.append(e)
         except: pass

@@ -97,7 +97,7 @@ if volunteer_mode %}
     <div class="locked-title">Attendance Window Closed</div>
     <div class="locked-desc">
       Attendance can only be taken on the event date ({{ event.event_date }})
-      and up to 2 days after. The window for this event has passed.
+      and up to 1 day after. The window for this event has passed.
     </div>
   </div>
 </div>
@@ -598,5 +598,12 @@ if volunteer_mode %}
       else
           document.getElementById('global-results').classList.remove('visible');
   });
+
+  // Hide keyboard when scrolling global results
+  const globalRes = document.getElementById('global-results');
+  if (globalRes) {
+      globalRes.addEventListener('touchmove', () => document.getElementById('global-name-search').blur(), {passive: true});
+      globalRes.addEventListener('scroll', () => document.getElementById('global-name-search').blur(), {passive: true});
+  }
 </script>
 {% endblock %}

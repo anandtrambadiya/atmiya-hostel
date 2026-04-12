@@ -341,5 +341,10 @@ document.getElementById('sabha-search').addEventListener('input', () => {
     else
         document.getElementById('sabha-results').classList.remove('visible');
 });
+
+// Hide keyboard when scrolling results
+const sabhaRes = document.getElementById('sabha-results');
+sabhaRes.addEventListener('touchmove', () => document.getElementById('sabha-search').blur(), {passive: true});
+sabhaRes.addEventListener('scroll', () => document.getElementById('sabha-search').blur(), {passive: true});
 </script>
 {% endblock %}
