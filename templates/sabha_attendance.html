@@ -81,7 +81,7 @@
                         <input type="text" id="new-name" placeholder="Full name *" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:13px;background:var(--bg2);outline:none;">
                     </div>
                     <div style="margin-bottom:10px;">
-                        <input type="tel" id="new-mobile" placeholder="Mobile (optional)" style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:13px;background:var(--bg2);outline:none;">
+                        <input type="tel" id="new-mobile" placeholder="Mobile number *" required style="width:100%;padding:8px 10px;border:1.5px solid var(--border);border-radius:7px;font-family:inherit;font-size:13px;background:var(--bg2);outline:none;">
                     </div>
                     <div style="display:flex;gap:7px;">
                         <button onclick="quickAddSatsangi()" class="btn btn-primary btn-sm" style="flex:1;justify-content:center;">Add & Mark Present</button>
@@ -144,7 +144,13 @@ function searchSatsangi(q) {
         s.name.toLowerCase().includes(lower) || s.mobile.includes(q)
     );
     if (matches.length === 0) {
-        results.innerHTML = '<div class="no-results" style="padding:20px;">No satsangis found</div>';
+        results.innerHTML = `<div style="padding:14px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;">
+            <div style="font-size:13px;color:var(--text3);">No results for "<strong>${q}</strong>"</div>
+            <button onclick="showAddForm('${q.replace(/'/g,\"\\'\")}'); document.getElementById('sabha-results').classList.remove('visible');"
+                style="padding:6px 12px;background:var(--accent);color:#fff;border:none;border-radius:7px;font-family:inherit;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;">
+                + Add New
+            </button>
+        </div>`;
     } else {
         results.innerHTML = matches.map(s => {
             const present = MARKED_IDS.includes(s.id);
@@ -216,7 +222,8 @@ function addToList(id, name, mobile, animate) {
         <div class="marked-name">${name}</div>
         ${mobile ? `<div class="marked-room">${mobile}</div>` : ''}
         <button class="remove-btn" data-uid="${id}" onclick="unmarkById(this)">×</button>`;
-    list.appendChild(item);
+    // Prepend so newest appears at top
+    list.insertBefore(item, list.firstChild);
 }
 
 function removeFromList(id) {
@@ -260,9 +267,14 @@ function showToast(msg, type='success') {
 }
 
 // ── Quick add satsangi ──
-function showAddForm() {
+function showAddForm(prefillName) {
     document.getElementById('quick-add-form').style.display = '';
-    document.getElementById('new-name').focus();
+    if (prefillName) {
+        document.getElementById('new-name').value = prefillName;
+        document.getElementById('new-mobile').focus();
+    } else {
+        document.getElementById('new-name').focus();
+    }
 }
 function hideAddForm() {
     document.getElementById('quick-add-form').style.display = 'none';
@@ -275,6 +287,7 @@ async function quickAddSatsangi() {
     const mobile = document.getElementById('new-mobile').value.trim();
     const errEl = document.getElementById('add-error');
     if (!name) { errEl.textContent = 'Name is required'; errEl.style.display = ''; return; }
+    if (!mobile) { errEl.textContent = "Mobile number is required"; errEl.style.display = ""; document.getElementById("new-mobile").focus(); return; }
     const res = await fetch('/api/satsangis/quick-add', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({name, mobile})

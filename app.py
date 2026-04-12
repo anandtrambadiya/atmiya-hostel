@@ -225,12 +225,19 @@ def dashboard():
         c.execute("SELECT COUNT(*) FROM events WHERE event_type=%s", (etype,))
         stats[etype + '_events'] = c.fetchone()[0]
     c.execute('SELECT * FROM events ORDER BY created_at DESC LIMIT 6')
-    recent_events = fetchall_dict(c)
+    raw_events = fetchall_dict(c)
     conn.close()
-    today_str = date.today().strftime("%Y-%m-%d")
-
-
-    return render_template('dashboard.html', stats=stats, recent_events=recent_events, today_str = today_str)
+    today = date.today()
+    today_str = today.strftime("%Y-%m-%d")
+    recent_events = []
+    for e in raw_events:
+        try:
+            edate = datetime.strptime(str(e['event_date']), '%Y-%m-%d').date()
+            e['is_active'] = edate <= today <= edate + timedelta(days=2)
+        except:
+            e['is_active'] = False
+        recent_events.append(e)
+    return render_template('dashboard.html', stats=stats, recent_events=recent_events, today_str=today_str)
 
 # ── SETTINGS ─────────────────────────────────────────────
 @app.route('/settings/volunteer-password', methods=['POST'])
@@ -304,7 +311,8 @@ def volunteer_attendance(id):
         conn.close()
         return render_template('sabha_attendance.html', event=event, marked_ids=marked_ids,
                                all_satsangis=all_satsangis,
-                               window_open=is_attendance_open(event['event_date']))
+                               window_open=is_attendance_open(event['event_date']),
+                               volunteer_mode=True)
     else:
         c.execute('SELECT * FROM buildings ORDER BY name')
         buildings = fetchall_dict(c)
@@ -428,9 +436,9 @@ def assembly():
 
 @app.route('/events/add', methods=['GET','POST'])
 def add_event():
-    event_type = request.args.get('type', 'sunday')
+    event_type = request.args.get('type', '')
     if request.method == 'POST':
-        event_type = request.form.get('event_type', 'sunday')
+        event_type = request.form.get('event_type', '')
         conn = get_db(); c = conn.cursor()
         c.execute('INSERT INTO events (title, event_date, event_type, description) VALUES (%s,%s,%s,%s)',
                   (request.form['title'], request.form['event_date'],
@@ -475,7 +483,8 @@ def take_attendance(id):
         all_satsangis = fetchall_dict(c); conn.close()
         return render_template('sabha_attendance.html', event=event, marked_ids=marked_ids,
                                all_satsangis=all_satsangis,
-                               window_open=is_attendance_open(event['event_date']))
+                               window_open=is_attendance_open(event['event_date']),
+                               volunteer_mode=False)
     else:
         c.execute('SELECT * FROM buildings ORDER BY name')
         buildings = fetchall_dict(c)

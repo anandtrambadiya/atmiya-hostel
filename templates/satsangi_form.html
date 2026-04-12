@@ -12,15 +12,18 @@
     <form method="POST">
         <div class="form-group">
             <label>Full Name *</label>
-            <input type="text" name="name" value="{{ satsangi.name if satsangi else '' }}" placeholder="Full name" required>
+            <input type="text" name="name" value="{{ satsangi.name if satsangi else '' }}"
+                   placeholder="Full name" required autofocus>
         </div>
         <div class="form-group">
-            <label>Mobile</label>
-            <input type="tel" name="mobile" value="{{ satsangi.mobile if satsangi else '' }}" placeholder="Mobile number">
+            <label>Mobile *</label>
+            <input type="tel" name="mobile" value="{{ satsangi.mobile if satsangi else '' }}"
+                   placeholder="10-digit mobile number" required
+                   pattern="[0-9]{10}" title="Enter 10-digit mobile number">
         </div>
         <div class="form-group">
-            <label>Address <span style="font-weight:400;color:var(--text3);">(optional)</span></label>
-            <textarea name="address" placeholder="Address">{{ satsangi.address if satsangi else '' }}</textarea>
+            <label>Address <span style="font-weight:400;color:var(--text3);font-size:11px;">(optional)</span></label>
+            <textarea name="address" placeholder="Village, city or area">{{ satsangi.address if satsangi else '' }}</textarea>
         </div>
         <div class="form-actions">
             <button type="submit" class="btn btn-primary">{{ 'Save Changes' if satsangi else 'Add Satsangi' }}</button>
