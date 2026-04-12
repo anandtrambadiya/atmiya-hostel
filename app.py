@@ -171,7 +171,7 @@ def maybe_auto_mark_absent(event_id, event_date_str, event_type):
 # ── ALLOWED ROUTES ────────────────────────────────────────
 VOLUNTEER_ALLOWED = {
     'volunteer_dashboard', 'volunteer_attendance', 'volunteer_sabha_attendance',
-    'volunteer_report', 'volunteer_login', 'volunteer_logout',
+    'volunteer_report', 'volunteer_login', 'volunteer_logout', 'volunteer_events_type',
     'api_rooms', 'api_students', 'api_mark_attendance', 'api_unmark_attendance',
     'api_search_satsangis', 'api_mark_sabha', 'api_unmark_sabha', 'api_quick_add_satsangi',
     'static'
@@ -293,6 +293,41 @@ def volunteer_dashboard():
                     buckets[etype].append(e)
         except: pass
     return render_template('volunteer_dashboard.html', buckets=buckets)
+
+@app.route('/volunteer/events/<etype>')
+def volunteer_events_type(etype):
+    if not session.get('volunteer') and not session.get('admin'):
+        return redirect(url_for('volunteer_login'))
+    
+    conn = get_db()
+    c = conn.cursor()
+    c.execute("""SELECT e.*, COUNT(CASE WHEN a.status='present' THEN 1 END) as attendance_count
+        FROM events e LEFT JOIN attendance a ON a.event_id=e.id
+        WHERE e.event_type=%s
+        GROUP BY e.id ORDER BY e.event_date DESC""", (etype,))
+    events = fetchall_dict(c)
+    conn.close()
+    
+    today = date.today()
+    active_events = []
+    for e in events:
+        try:
+            edate = datetime.strptime(str(e['event_date']), '%Y-%m-%d').date()
+            if edate <= today <= edate + timedelta(days=2):
+                e['window_open'] = True
+                active_events.append(e)
+        except: pass
+
+    # get event type label
+    type_labels = {
+        'sunday': 'Sunday Sabha',
+        'wednesday': 'Wednesday Sabha',
+        'balsabha': 'Bal Sabha',
+        'hostel': 'Hostel Assembly'
+    }
+    label = type_labels.get(etype, etype.title())
+
+    return render_template('volunteer_events_list.html', active_events=active_events, etype=etype, label=label)
 
 @app.route('/volunteer/attendance/<int:id>')
 def volunteer_attendance(id):
@@ -868,15 +903,16 @@ def api_quick_add_satsangi():
     data = request.get_json()
     name = (data.get('name') or '').strip()
     mobile = (data.get('mobile') or '').strip()
-    if not name:
-        return jsonify({'success': False, 'error': 'Name is required'})
+    address = (data.get('address') or '').strip()
+    if not name or not mobile:
+        return jsonify({'success': False, 'error': 'Name and mobile are required'})
     conn = get_db(); c = conn.cursor()
     try:
-        c.execute('INSERT INTO satsangis (name, mobile) VALUES (%s,%s) RETURNING id',
-                  (name, mobile or None))
+        c.execute('INSERT INTO satsangis (name, mobile, address) VALUES (%s,%s,%s) RETURNING id',
+                  (name, mobile, address or None))
         new_id = c.fetchone()[0]
         conn.commit(); conn.close()
-        return jsonify({'success': True, 'id': new_id, 'name': name, 'mobile': mobile})
+        return jsonify({'success': True, 'id': new_id, 'name': name, 'mobile': mobile, 'address': address})
     except Exception as e:
         conn.close()
         return jsonify({'success': False, 'error': str(e)})

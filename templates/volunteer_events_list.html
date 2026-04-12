@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Volunteer — {{ label }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700;800&family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg:#f7f5f0;--bg2:#fff;--bg3:#f2f0eb;--border:#e2dfd7;
+            --accent:#2563eb;--accent-light:#eff4ff;
+            --text:#1a1814;--text2:#5a5650;--text3:#9c9890;
+            --green:#16a34a;--green-light:#f0fdf4;
+            --red:#dc2626;--red-light:#fef2f2;
+            --shadow-sm:0 1px 3px rgba(0,0,0,0.06);--shadow:0 4px 16px rgba(0,0,0,0.08);
+            --radius:14px;--radius-sm:9px;
+        }
+        *{margin:0;padding:0;box-sizing:border-box;}
+        body{font-family:'Outfit',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;-webkit-font-smoothing:antialiased;}
+
+        .topbar{background:var(--bg2);border-bottom:1.5px solid var(--border);padding:0 18px;height:54px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:var(--shadow-sm);}
+        .topbar-left{display:flex;align-items:center;gap:10px;}
+        .logo-mark{width:30px;height:30px;background:var(--bg3);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;text-decoration:none;color:var(--text2);font-weight:700;}
+        .logo-text{font-family:'Playfair Display',serif;font-size:15px;font-weight:700;}
+        .vol-pill{background:var(--green-light);color:var(--green);border:1px solid #bbf7d0;font-size:10px;font-weight:700;padding:2px 8px;border-radius:20px;text-transform:uppercase;}
+        .logout-btn{padding:6px 12px;background:var(--bg3);border:1.5px solid var(--border);border-radius:var(--radius-sm);color:var(--text2);font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;text-decoration:none;transition:all 0.18s;}
+        .logout-btn:hover{background:var(--red-light);border-color:#fecaca;color:var(--red);}
+
+        .page{max-width:700px;margin:0 auto;padding:20px 14px 60px;}
+
+        .bucket{background:var(--bg2);border:1.5px solid var(--border);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow-sm);}
+        .bucket-hd{padding:14px 16px;display:flex;align-items:center;gap:10px;border-bottom:1.5px solid var(--border);}
+        .bucket-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;}
+        
+        .bucket-body{padding:12px;}
+        .empty-bucket{text-align:center;padding:30px 10px;color:var(--text3);font-size:14px;}
+
+        .ev-card{border:1.5px solid var(--border);border-radius:var(--radius-sm);padding:14px 16px;margin-bottom:12px;}
+        .ev-card:last-child{margin-bottom:0;}
+        .ev-title{font-weight:600;font-size:15px;margin-bottom:4px;line-height:1.3;}
+        .ev-meta{font-size:12px;color:var(--accent);font-weight:600;margin-bottom:12px;}
+        .ev-btns{display:flex;gap:8px;}
+
+        .btn{display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:10px 15px;border-radius:var(--radius-sm);border:none;cursor:pointer;font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;text-decoration:none;transition:all 0.18s;white-space:nowrap;}
+        .btn-primary{background:var(--accent);color:#fff;}
+        .btn-primary:hover{background:#1d4ed8;}
+        .btn-secondary{background:var(--bg3);color:var(--text2);border:1.5px solid var(--border);}
+        .btn-secondary:hover{background:var(--bg);color:var(--text);}
+        .btn-sm{padding:8px 13px;font-size:13px;}
+        .btn-full{flex:1;}
+        
+        .back-btn{display:inline-flex;align-items:center;gap:6px;font-weight:600;color:var(--text2);text-decoration:none;margin-bottom:15px;font-size:14px;}
+        .back-btn:hover{color:var(--text);}
+    </style>
+</head>
+<body>
+<div class="topbar">
+    <div class="topbar-left">
+        <a href="{{ url_for('volunteer_dashboard') }}" class="logo-mark">←</a>
+        <div class="logo-text">Youth Assembly</div>
+        <span class="vol-pill">Volunteer</span>
+    </div>
+    <a href="{{ url_for('volunteer_logout') }}" class="logout-btn">Logout →</a>
+</div>
+
+<div class="page">
+    <a href="{{ url_for('volunteer_dashboard') }}" class="back-btn">← Back to Dashboard</a>
+    
+    <div class="bucket">
+        <div class="bucket-hd">
+            <div class="bucket-title">{{ label }} — Active Events</div>
+        </div>
+        <div class="bucket-body">
+            {% if active_events %}
+                {% for e in active_events %}
+                <div class="ev-card">
+                    <div class="ev-title">{{ e.title }}</div>
+                    <div class="ev-meta">📅 {{ e.event_date }} &nbsp;&nbsp;·&nbsp;&nbsp; {{ e.attendance_count }} present</div>
+                    <div class="ev-btns">
+                        <a href="{{ url_for('volunteer_attendance', id=e.id) }}" class="btn btn-primary btn-sm btn-full">✓ Start Attendance</a>
+                        <a href="{{ url_for('volunteer_report', eid=e.id) }}" class="btn btn-secondary btn-sm">Report</a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% else %}
+            <div class="empty-bucket">No active events for {{ label }} right now.</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+</body>
+</html>

@@ -55,12 +55,13 @@
         <button onclick="showAddForm()">+ Add New</button>
 
         <!-- Quick Add -->
-        <div id="quick-add-form" style="display:none;">
+        <div id="quick-add-form" style="display:none; margin-top: 10px;">
             <input type="text" id="new-name" placeholder="Name *">
-            <input type="tel" id="new-mobile" placeholder="Mobile (optional)">
+            <input type="tel" id="new-mobile" placeholder="Mobile *">
+            <input type="text" id="new-address" placeholder="Address (optional)">
             <button onclick="quickAddSatsangi()">Add & Mark</button>
             <button onclick="hideAddForm()">Cancel</button>
-            <div id="add-error"></div>
+            <div id="add-error" style="color:var(--red); font-size: 12px; margin-top: 4px;"></div>
         </div>
     </div>
 
@@ -193,6 +194,8 @@ async function removeById(id) {
 function showAddForm(name = '') {
     document.getElementById('quick-add-form').style.display = 'block';
     document.getElementById('new-name').value = name;
+    document.getElementById('new-address').value = '';
+    document.getElementById('new-mobile').focus();
 }
 
 function hideAddForm() {
@@ -203,16 +206,19 @@ function hideAddForm() {
 async function quickAddSatsangi() {
     const name = document.getElementById('new-name').value.trim();
     const mobile = document.getElementById('new-mobile').value.trim();
+    const address = document.getElementById('new-address').value.trim();
 
-    if (!name) {
-        document.getElementById('add-error').innerText = 'Name required';
+    if (!name || !mobile) {
+        document.getElementById('add-error').innerText = 'Name and mobile required';
         return;
     }
+    
+    document.getElementById('add-error').innerText = '';
 
     const res = await fetch('/api/satsangis/quick-add', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({name, mobile})
+        body: JSON.stringify({name, mobile, address})
     });
 
     const data = await res.json();
@@ -221,6 +227,8 @@ async function quickAddSatsangi() {
         ALL_SATSANGIS.push({id: data.id, name, mobile});
         await toggleSatsangi(data.id, name, mobile);
         hideAddForm();
+    } else {
+        document.getElementById('add-error').innerText = data.error || 'Failed to add';
     }
 }
 </script>

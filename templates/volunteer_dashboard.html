@@ -63,6 +63,14 @@
         .icon-wednesday{background:var(--accent-light);}
         .icon-balsabha{background:#fdf4ff;}
         .icon-hostel{background:#fff7ed;}
+        
+        .type-launcher{text-decoration:none;display:flex;align-items:center;padding:20px 16px;background:var(--bg2);border:2px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);transition:all 0.2s;gap:15px;position:relative;}
+        .type-launcher:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:var(--shadow);}
+        .launcher-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;}
+        .launcher-content{flex:1;}
+        .launcher-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:700;color:var(--text);margin-bottom:2px;}
+        .launcher-sub{font-size:12px;color:var(--text3);}
+        .launcher-arrow{font-size:16px;color:var(--text3);font-weight:700;}
     </style>
 </head>
 <body>
@@ -90,32 +98,17 @@
     <div class="buckets-grid">
         {% for etype, meta in type_meta.items() %}
         {% set events = buckets.get(etype, []) %}
-        <div class="bucket">
-            <div class="bucket-hd">
-                <div class="bucket-icon {{ meta.cls }}">{{ meta.icon }}</div>
-                <div>
-                    <div class="bucket-title">{{ meta.label }}</div>
-                    <div class="bucket-sub">{{ meta.sub }}</div>
-                </div>
-                {% if events %}<div class="live-dot"></div>{% endif %}
+        <a href="{{ url_for('volunteer_events_type', etype=etype) }}" class="type-launcher">
+            <div class="launcher-icon {{ meta.cls }}">{{ meta.icon }}</div>
+            <div class="launcher-content">
+                <div class="launcher-title">{{ meta.label }}</div>
+                <div class="launcher-sub">{{ meta.sub }}</div>
             </div>
-            <div class="bucket-body">
-                {% if events %}
-                    {% for e in events %}
-                    <div class="ev-card">
-                        <div class="ev-title">{{ e.title }}</div>
-                        <div class="ev-meta">📅 {{ e.event_date }} · {{ e.attendance_count }} present</div>
-                        <div class="ev-btns">
-                            <a href="{{ url_for('volunteer_attendance', id=e.id) }}" class="btn btn-primary btn-sm btn-full">✓ Attendance</a>
-                            <a href="{{ url_for('volunteer_report', eid=e.id) }}" class="btn btn-secondary btn-sm">Report</a>
-                        </div>
-                    </div>
-                    {% endfor %}
-                {% else %}
-                <div class="empty-bucket">No active events</div>
-                {% endif %}
-            </div>
-        </div>
+            {% if events %}
+            <div class="live-dot" style="margin-left: 0; margin-right: 10px;"></div>
+            {% endif %}
+            <div class="launcher-arrow">→</div>
+        </a>
         {% endfor %}
     </div>
 </div>
