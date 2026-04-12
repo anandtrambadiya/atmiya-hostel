@@ -869,26 +869,36 @@ def analytics():
         for key, total_key, label in [
             ('sun_present','sun_total','Sunday'),
             ('wed_present','wed_total','Wednesday'),
-            ('bal_present','bal_total','Bal Sabha'),
         ]:
             total = s[total_key]
             present = s[key]
             if total > 0 and present / total >= THRESHOLD:
                 types.append(label)
+                
         if len(types) == 0:
             s['regularity'] = 'Irregular'
             s['reg_class'] = 'irregular'
-        elif len(types) == 3:
-            s['regularity'] = 'All Sabha'
+        elif len(types) == 2:
+            s['regularity'] = 'Regular'
             s['reg_class'] = 'all'
         elif len(types) == 1:
             s['regularity'] = f'{types[0]} Regular'
-            s['reg_class'] = types[0].lower().replace(' ','')
+            s['reg_class'] = types[0].lower()
+            
+        bal_total = s['bal_total']
+        bal_present = s['bal_present']
+        if bal_total > 0 and bal_present / bal_total >= THRESHOLD:
+            s['bal_regularity'] = 'Regular'
+            s['bal_reg_class'] = 'balsabha'
+        elif bal_total > 0:
+            s['bal_regularity'] = 'Irregular'
+            s['bal_reg_class'] = 'irregular'
         else:
-            s['regularity'] = ' + '.join(types)
-            s['reg_class'] = 'multi'
-        s['total_present'] = s['sun_present'] + s['wed_present'] + s['bal_present']
-        s['total_events']  = s['sun_total']   + s['wed_total']   + s['bal_total']
+            s['bal_regularity'] = 'N/A'
+            s['bal_reg_class'] = 'irregular'
+            
+        s['total_present'] = s['sun_present'] + s['wed_present']
+        s['total_events']  = s['sun_total']   + s['wed_total']
 
     conn.close()
     return render_template('analytics.html',

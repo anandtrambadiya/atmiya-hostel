@@ -132,18 +132,18 @@
 
         {% if satsangi_stats %}
         {% set total_s = satsangi_stats | length %}
-        {% set sun_reg = satsangi_stats | selectattr('regularity','in',['Sunday Regular','Sunday + Wednesday','Sunday + Bal Sabha','All Sabha']) | list | length %}
-        {% set wed_reg = satsangi_stats | selectattr('regularity','in',['Wednesday Regular','Sunday + Wednesday','Wednesday + Bal Sabha','All Sabha']) | list | length %}
-        {% set bal_reg = satsangi_stats | selectattr('regularity','in',['Bal Sabha Regular','Sunday + Bal Sabha','Wednesday + Bal Sabha','All Sabha']) | list | length %}
+        {% set sun_reg = satsangi_stats | selectattr('regularity','equalto','Sunday Regular') | list | length %}
+        {% set wed_reg = satsangi_stats | selectattr('regularity','equalto','Wednesday Regular') | list | length %}
         {% set all_reg = satsangi_stats | selectattr('reg_class','equalto','all') | list | length %}
         {% set irreg   = satsangi_stats | selectattr('reg_class','equalto','irregular') | list | length %}
+        {% set bal_reg = satsangi_stats | selectattr('bal_reg_class','equalto','balsabha') | list | length %}
 
         <div class="summary-pills">
             <div class="summary-pill" style="background:#fef9c3;color:#854d0e;">🙏 Sunday Regular: <strong>{{ sun_reg }}</strong></div>
             <div class="summary-pill" style="background:var(--accent-light);color:var(--accent);">📿 Wednesday Regular: <strong>{{ wed_reg }}</strong></div>
+            <div class="summary-pill" style="background:var(--green-light);color:var(--green);">✓ Both Regular: <strong>{{ all_reg }}</strong></div>
+            <div class="summary-pill" style="background:var(--bg3);color:var(--text3);">? Irregular (Sabha): <strong>{{ irreg }}</strong></div>
             <div class="summary-pill" style="background:#fdf4ff;color:#7c3aed;">⭐ Bal Sabha Regular: <strong>{{ bal_reg }}</strong></div>
-            <div class="summary-pill" style="background:var(--green-light);color:var(--green);">✓ All Sabha: <strong>{{ all_reg }}</strong></div>
-            <div class="summary-pill" style="background:var(--bg3);color:var(--text3);">? Irregular: <strong>{{ irreg }}</strong></div>
         </div>
         {% endif %}
     </div>
@@ -168,11 +168,12 @@
                     <tr>
                         <th>#</th>
                         <th>Satsangi</th>
-                        <th>Regularity</th>
+                        <th>Sabha Reg</th>
+                        <th>Bal Sabha Reg</th>
                         <th>🙏 Sun</th>
                         <th>📿 Wed</th>
                         <th>⭐ Bal</th>
-                        <th>Total</th>
+                        <th>Total Sabha</th>
                     </tr>
                 </thead>
                 <tbody id="sat-tbody">
@@ -189,6 +190,13 @@
                         {% if s.mobile %}<div style="font-size:11px;color:var(--text3);">{{ s.mobile }}</div>{% endif %}
                     </td>
                     <td><span class="reg-badge reg-{{ s.reg_class }}">{{ s.regularity }}</span></td>
+                    <td>
+                        {% if s.bal_regularity != 'N/A' %}
+                        <span class="reg-badge reg-{{ s.bal_reg_class }}">{{ s.bal_regularity }}</span>
+                        {% else %}
+                        <span style="color:var(--text3);font-size:11px;">—</span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if s.sun_total > 0 %}
                         <span style="font-weight:600;">{{ s.sun_present }}</span><span style="color:var(--text3);font-size:11px;">/{{ s.sun_total }}</span>
