@@ -385,7 +385,7 @@ def _report(eid, volunteer_mode):
             a.status
             FROM attendance a JOIN satsangis s ON a.person_id=s.id
             WHERE a.event_id=%s AND a.person_type='satsangi'
-            ORDER BY a.status ASC, s.name""", (eid,))
+            ORDER BY a.status DESC, s.name""", (eid,))
         records = fetchall_dict(c)
         c.execute('SELECT COUNT(*) FROM satsangis')
     else:
@@ -398,7 +398,7 @@ def _report(eid, volunteer_mode):
             LEFT JOIN rooms r ON s.room_id=r.id
             LEFT JOIN buildings b ON r.building_id=b.id
             WHERE a.event_id=%s AND a.person_type='student'
-            ORDER BY a.status ASC, b.name, r.room_number, s.name""", (eid,))
+            ORDER BY a.status DESC, b.name, r.room_number, s.name""", (eid,))
         records = fetchall_dict(c)
         c.execute('SELECT COUNT(*) FROM students')
     total = c.fetchone()[0]; conn.close()
