@@ -253,24 +253,21 @@ const chartColors = {
 (function() {
     const data = {{ trends[etype] | tojson }};
     new Chart(document.getElementById('chart-{{ etype }}'), {
-        type: 'line',
+        type: 'bar',
         data: {
             labels: data.map(d => d.event_date),
             datasets: [{
                 label: 'Present',
                 data: data.map(d => d.present_count),
-                borderColor: '{{ color }}', backgroundColor: '{{ bg }}',
-                fill: true, tension: 0.35, pointRadius: 4, pointHoverRadius: 6
-            },{
-                label: 'Absent',
-                data: data.map(d => d.absent_count),
-                borderColor: '#dc2626', backgroundColor: 'rgba(220,38,38,0.07)',
-                fill: true, tension: 0.35, pointRadius: 4, pointHoverRadius: 6
+                borderColor: '{{ color }}', 
+                backgroundColor: '{{ bg }}',
+                borderWidth: 1.5,
+                borderRadius: 4
             }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: { legend: { position: 'top', labels: { boxWidth: 12, font: { size: 12 } } } },
+            plugins: { legend: { display: false } }, // Hide legend since there's only one dataset
             scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         }
     });
